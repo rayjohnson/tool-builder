@@ -22,7 +22,6 @@ model_params:
 
 # ── Environment variables ─────────────────────────────────────────────────────
 # Declares env vars the tool needs at runtime.
-# tool-builder reads these from the environment and injects them as needed.
 # Required vars cause a hard error with a helpful message if missing.
 # The provider's API key (e.g., ANTHROPIC_API_KEY) is always implicitly required
 # and does NOT need to be listed here — tool-builder handles it automatically.
@@ -38,6 +37,7 @@ env:
 # ── System prompts ───────────────────────────────────────────────────────────
 # Concatenated in order and sent as the model's system prompt.
 # They encode the tool's domain knowledge — standards, idioms, conventions.
+# Paths are relative to the config file (not the working directory).
 # Sources: inline text, local file (relative to config), or remote URL.
 system_prompts:
   - file: prompts/go_testing_standards.md
@@ -46,6 +46,24 @@ system_prompts:
   - text: |
       Always use table-driven tests with a 'tests' slice of structs.
       Test function names must follow TestXxx_Scenario convention.
+
+# ── File access ───────────────────────────────────────────────────────────────
+# Declares what files in the user's working directory the agent is ALLOWED to
+# read and write during the conversation. This is a capability scope, not a
+# pre-load list — the agent decides what to actually read based on the task.
+#
+# The agent receives read_file and write_file tools scoped to these patterns.
+# Absent = no file access (agent can only use information from system prompts
+# and what the user types).
+#
+# Patterns are relative to the working directory where the tool is invoked,
+# NOT relative to the config file.
+file_access:
+  read:
+    - glob: "**/*.go"           # any Go file anywhere in the working tree
+    - dir: docs/                # everything under docs/
+  write:
+    - glob: "**/*.go"           # agent may only write Go files
 
 # ── Commands ─────────────────────────────────────────────────────────────────
 # A tool may define one or more subcommands. If only one command is defined
@@ -75,15 +93,6 @@ commands:
         description: Output file path (default: <target>_test.go)
         type: string
 
-    # Files/directories to read into context before the conversation starts.
-    # Positional args are always read automatically (no need to list from_args
-    # separately unless you want to be explicit).
-    context_files:
-      - from_args: true           # reads the file(s) passed as positional args
-      - path: docs/testing.md     # static file always included
-      - glob: "internal/**/*.go"  # glob pattern, relative to working directory
-      - dir: .                    # entire working directory, recursively
-
   - name: fix
     description: Fix failing tests in a Go file
     prompt: |
@@ -92,8 +101,6 @@ commands:
       - name: target
         description: Go test file to fix
         required: true
-    context_files:
-      - from_args: true
 
 # ── Tool use ─────────────────────────────────────────────────────────────────
 # Opt-in. Absent = agent cannot execute any shell commands.
@@ -114,6 +121,28 @@ tool_use:
 output_mode: confirm
 ```
 
+## How file context actually works
+
+There are three distinct sources of file content for the agent. It is important
+to understand the difference:
+
+**1. System prompts** — static domain knowledge baked into the tool itself.
+These files live alongside the config (relative to the config file) and are
+always loaded at startup. Examples: `prompts/go_testing_standards.md`, inline
+convention text. These never come from the user's working directory.
+
+**2. File access scope** (`file_access`) — a capability declaration. The agent
+gets `read_file` and `write_file` tools scoped to these patterns. The agent
+reads files *on demand* as the conversation progresses — only the files
+relevant to the current task. Patterns are relative to the working directory.
+Declaring `dir: .` does not read every file upfront; it means the agent *may*
+read any file if it needs to.
+
+**3. Positional args** — files the user explicitly names on the command line
+(e.g., `gotest ./pkg/foo.go`). These are read immediately and injected into
+the first message as the primary subject of the task. They are the agent's
+starting point.
+
 ## Top-level fields
 
 | Field | Type | Required | Description |
@@ -125,6 +154,7 @@ output_mode: confirm
 | `model_params` | object | no | `max_tokens`, `temperature`, etc. |
 | `env` | list | no | Environment variable declarations (see below) |
 | `system_prompts` | list | yes | One or more system prompt entries (see below) |
+| `file_access` | object | no | `read` and `write` scope lists (see below) |
 | `commands` | list | yes | One or more command definitions (see below) |
 | `tool_use` | object | no | Shell tool allowlist; omit to disable all tool use |
 | `output_mode` | string | no | How file changes are presented; default `confirm` |
@@ -152,8 +182,8 @@ emits a clear error if missing.
 |---|---|---|---|
 | `name` | string | yes | Environment variable name |
 | `description` | string | yes | Shown in error messages and `--help` output |
-| `required` | bool | no | If true, hard error at startup if missing; default false |
-| `default` | string | no | Value used when the var is absent and `required` is false |
+| `required` | bool | no | Hard error at startup if missing; default false |
+| `default` | string | no | Value used when absent and `required` is false |
 
 ## System prompt entries
 
@@ -162,12 +192,27 @@ Each entry in `system_prompts` is one of:
 ```yaml
 - text: "inline prompt text"
 - file: path/to/prompt.md        # relative to the config file
-- url: https://example.com/p.md  # fetched at runtime; cached for the session
+- url: https://example.com/p.md  # fetched at startup; cached for the session
 ```
 
 URL prompts are fetched once at tool startup and cached for the session.
-They are not cached across runs — every invocation fetches fresh content.
-(Caching across runs is a future concern.)
+Not cached across runs — every invocation fetches fresh content.
+
+## file_access patterns
+
+```yaml
+file_access:
+  read:
+    - glob: "**/*.go"       # glob, relative to working directory
+    - dir: src/             # entire subtree (shorthand for glob: "src/**/*")
+    - dir: .                # entire working directory
+  write:
+    - glob: "**/*.go"
+    - dir: src/
+```
+
+`read` and `write` are independent. A tool that should never write files
+omits `write` entirely.
 
 ## Command fields
 
@@ -176,25 +221,8 @@ They are not cached across runs — every invocation fetches fresh content.
 | `name` | string | yes | Subcommand name (`default` to skip subcommand layer) |
 | `description` | string | yes | Help text for this command |
 | `prompt` | string | no | Inline prompt appended after system prompts |
-| `args` | list | no | Positional arguments |
+| `args` | list | no | Positional arguments (files named here are read and injected upfront) |
 | `flags` | list | no | Named flags |
-| `context_files` | list | no | Files/dirs to read into context before conversation |
-
-## context_files entries
-
-```yaml
-- from_args: true               # reads files passed as positional args
-- path: relative/file.md        # single file, relative to working directory
-- glob: "src/**/*.go"           # glob pattern, relative to working directory
-- dir: .                        # all files in this directory, recursively
-- dir: src/internal             # subtree rooted at a specific directory
-```
-
-`dir` is equivalent to `glob: "<dir>/**/*"` but more readable and the
-intended way to say "all files here and below."
-
-Large context loads (glob/dir on a big repo) will be flagged with a warning
-and a file-count summary before the conversation starts.
 
 ## Flag types
 
@@ -203,5 +231,5 @@ Supported: `string`, `bool`, `int`, `string_slice`
 ## Open schema questions
 
 - For `url` system prompts: should there be a `cache: session | always | never` option?
-- Should `context_files` support filtering within a `dir` (e.g., ignore `vendor/`, `node_modules/`)?
+- Should `file_access` patterns support an `exclude` list (e.g., ignore `vendor/`, `node_modules/`)?
 - Should `model_params` be provider-specific (some params don't map across providers)?
