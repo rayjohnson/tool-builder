@@ -5,97 +5,81 @@ Cross off items as they are completed; add new ones as they come up.
 
 ---
 
-## High priority — needed to have a working end-to-end tool
+## High priority — pivot to generated binaries
 
-- [x] **System prompt assembly** (`internal/systemprompt`)
-  Loads from `text`, `file` (relative to config), and `url` (session-cached).
+- [ ] **Move `internal/` to `pkg/`**
+  The runner, config, provider, and systemprompt packages must be publicly
+  importable by generated binaries. Rename all four packages and update every
+  import path. This is a prerequisite for everything else in this section.
 
-- [x] **Streaming Anthropic client**
-  Uses `BetaToolRunnerStreaming.AllStreaming`; prints text tokens in real time.
+- [ ] **`pkg/runtime` — entry point for generated binaries**
+  New package. Provides `Run(embeds Embeds, args []string) error` where
+  `Embeds` carries the pre-loaded config YAML and a map of prompt file paths
+  to their byte contents. This is what every generated binary's `main()` calls.
+  The runner already does this work; `runtime` is a thin public wrapper.
 
-- [x] **Runner / agent loop** (`internal/runner`)
-  Assembles system prompt, injects arg files as initial message, runs the
-  streaming conversation loop via the SDK's `BetaToolRunnerStreaming`.
+- [ ] **`cmd/build.go` — the `build` subcommand**
+  `tool-builder build --config mytool.yaml [--output ./bin/mytool]`
+  Steps:
+  1. Load and validate config
+  2. Collect all prompt files referenced by `file:` sources; fetch `url:` sources
+  3. Write a temp directory: config, prompt files, generated `main.go`, `go.mod`
+  4. Run `go build -o <output>` in the temp dir
+  5. Move binary to output path; clean up temp dir
 
-- [x] **File tools** — read and write scoped to `file_access`
-  `read_file` and `write_file` tools with scope validation against
-  `file_access.read` / `file_access.write` patterns (glob + dir supported).
+- [ ] **`main.go` code generator** (`pkg/codegen`)
+  Generates the `main.go` for the built binary using `text/template`.
+  Output includes:
+  - `//go:embed` directives for config YAML and every prompt file
+  - `main()` that calls `runtime.Run(embeds, os.Args[1:])`
+  - Cobra CLI wired to the config's commands, flags, and args
 
-- [x] **`output_mode: confirm`** — diff + yes/no before writing
-  Shows old vs. new content with +/- coloring; prompts y/N before writing.
-
-- [ ] **Flag values injected into command prompt**
-  The runner currently ignores flag values (e.g. `--hint` on commit-msg).
-  Flag values declared in the config should be injected into the prompt
-  context so the agent can use them.
-
-- [ ] **End-to-end smoke test**
-  Run one of the sample apps against a real file and verify the full pipeline
-  works: system prompt loads, file injects, LLM streams, write_file confirms.
-  Known gaps to discover: error messages, edge cases in arg parsing.
+- [ ] **Generated `go.mod`**
+  Pin `github.com/rayjohnson/tool-builder` to the version that built it
+  (injected via ldflags at release time; falls back to `main` for dev builds).
+  The generated binary is then reproducible and independent of future
+  tool-builder changes.
 
 ---
 
-## Medium priority — makes the tool usable in practice
+## Still needed from before (interpreter work)
 
-- [x] **Sample app: `commit-msg`** (`sample-apps/commit-msg/`)
-  Single default command. Runs git diff/log via tool_use, no file writes.
-  Good smoke test for the streaming + shell tool pipeline.
+- [x] **System prompt assembly** (`pkg/systemprompt`)
+- [x] **Streaming agent loop** (`pkg/runner`)
+- [x] **File tools** — read/write scoped to `file_access`
+- [x] **`output_mode: confirm`**
+- [x] **Shell tool-use execution**
+- [x] **Sample apps: commit-msg, test-builder, lint-fixer**
+- [ ] **Flag values injected into command prompt**
+  The runner ignores flag values (e.g. `--hint` on commit-msg). Values
+  declared in the config should be injected into the prompt context.
+- [ ] **Validate sample apps end-to-end with `build`**
+  Build each sample app as a binary and run it against real code.
 
-- [ ] **Validate sample apps end-to-end**
-  Once the runner exists, run `sample-apps/test-builder` and
-  `sample-apps/lint-fixer` against real code as integration tests.
-  Document any config schema gaps discovered during that exercise.
+---
+
+## Medium priority — polish
 
 - [ ] **`output_mode: interactive`** — accept/reject/refine loop
-  After `confirm` is working, add the richer interaction mode where the user
-  can type feedback to refine a proposed change before accepting it.
-  Can borrow the TUI approach from prpolish.
+  After `confirm` is working, add the richer mode where the user can type
+  feedback to refine a proposed change before accepting.
 
-- [ ] **Shell tool-use execution** (`internal/tooluse`)
-  When `tool_use.enabled: true`, expose the declared shell commands as
-  LLM tool-use functions. Validate each invocation against the allowlist
-  before executing. Capture and return stdout/stderr to the LLM.
+- [ ] **`file_access` exclude patterns**
+  Allow `dir:` and `glob:` entries to have an `exclude` list (e.g. skip
+  `vendor/`, `node_modules/`).
 
-- [ ] **Config tests** (`internal/config/config_test.go`)
-  Table-driven tests for `Load`, `validate`, `CheckEnv`, `Provider`,
-  `ModelID`. Use small inline YAML strings — no file fixtures needed.
+- [ ] **Ambient context: `CLAUDE.md`**
+  Generated tools should optionally read a `CLAUDE.md` from the working
+  directory and inject it as additional system context. Useful for project-
+  specific conventions the tool author didn't know about in advance.
 
-- [ ] **README**
-  Installation (build from source for now), usage (`tool-builder run`),
-  the config file format (link to `PLANS/config-schema.md` for now),
-  and requirements (`ANTHROPIC_API_KEY`).
+- [ ] **Second provider: Google Gemini**
+  Add `google/` under `pkg/provider/`. Validates the multi-provider design.
 
 ---
 
-## Lower priority — polish and future-proofing
+## Lower priority
 
-- [ ] **`examples/` directory**
-  Ship a handful of example `.yaml` config files in the repo so users
-  have something to start from. At minimum: `commit-msg.yaml`, `gotest.yaml`.
-
-- [ ] **Second provider: Google Gemini**
-  Add `google/` under `internal/provider/` using the Google Generative AI
-  Go SDK. The `provider.Provider` interface is already provider-agnostic;
-  this is purely additive. Good validation that the multi-provider design
-  actually works.
-
-- [ ] **`file_access` exclude patterns**
-  Allow `dir:` and `glob:` entries to have an `exclude` list (e.g., skip
-  `vendor/`, `node_modules/`, `dist/`). Needed before anyone points a
-  tool at a real repo with a working directory full of ignored files.
-
-- [ ] **URL system prompt caching across runs**
-  Currently URL prompts are fetched fresh every invocation. Add an optional
-  `cache: always` mode that stores the fetched content in a local cache
-  (keyed by URL + ETag/Last-Modified) so repeated runs don't hit the network.
-
-- [ ] **`build` subcommand** (phase 2)
-  `tool-builder build --config <file>` emits a standalone binary with the
-  config and runtime embedded. Deferred until the interpreted runner is
-  proven. Needs design work on how to embed prompt files and the runtime
-  into the generated binary.
-
-- [ ] **`tool-builder init`** — interactive config scaffolding
-  A wizard that asks questions and writes a starter `tool.yaml`. Lowers
-  the barrier for new tool authors.
+- [ ] **`tool-builder init`** — interactive config scaffolding wizard
+- [ ] **URL prompt caching at build time** is currently fetch-and-embed;
+  add a `cache: runtime` opt-in for tools that want fresher content.

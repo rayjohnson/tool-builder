@@ -61,15 +61,51 @@ Prompts are first-class. They can be:
 - Composed: system prompt(s) encode domain knowledge; per-command prompts focus the task;
   the user provides the specific runtime request interactively
 
-### Execution model: interpreted first, generated later
+### Execution model: generate standalone binaries
 
-**Phase 1 — Interpreted**: `tool-builder run --config mytool.yaml [args]`
-tool-builder stays in the loop at runtime. Users must have tool-builder installed.
-Lets us prove the config schema end-to-end before committing to codegen.
+`tool-builder build --config mytool.yaml [--output ./bin/mytool]`
 
-**Phase 2 — Generated**: `tool-builder build --config mytool.yaml`
-Emits a standalone binary with flags, help text, and the runtime agent embedded.
-No tool-builder needed to run the generated tool. Deferred until the config schema is proven.
+Produces a standalone binary. Tool users only need the binary and an API key.
+Tool authors need tool-builder and Go installed to build; end users need neither.
+
+This is the primary model. The `run` command (interpreted) remains available
+as a fast development loop for iterating on configs without rebuilding.
+
+**How build works:**
+1. Load and validate the config
+2. Collect all referenced prompt files; fetch any `url:` sources and embed them
+3. Write a temp directory containing:
+   - `tool.yaml` (the config)
+   - All prompt files at their relative paths
+   - A generated `main.go` with `//go:embed` directives for every file
+   - A `go.mod` pinned to the current tool-builder release
+4. Run `go build -o <output>` inside the temp directory
+5. Move the binary to the output path; clean up temp files
+
+**What the generated binary contains:**
+- The config YAML (embedded)
+- All prompt file contents (embedded at build time, including URL sources)
+- The tool-builder runtime as a compiled-in dependency
+- Cobra CLI wired to the config's commands, flags, and args
+- No reference to the config file path at runtime
+
+**Why not ship the config file alongside the binary?**
+Embedding everything means the binary is truly self-contained — one file to
+distribute, no config drift, no missing prompt files.
+
+### tool-builder as a library
+
+To support generated binaries importing the runtime, tool-builder's packages
+must be public. The module is split:
+
+- `pkg/config` — config schema and loader (was `internal/config`)
+- `pkg/provider` — LLM provider interface (was `internal/provider`)
+- `pkg/runner` — agent loop and tools (was `internal/runner`)
+- `pkg/systemprompt` — prompt loader (was `internal/systemprompt`)
+- `pkg/runtime` — **new**: `Run(embeds, args)` entry point for generated binaries
+
+The `cmd/` packages remain internal to the tool-builder CLI.
+The `pkg/` packages are the public library surface that generated binaries import.
 
 ### Tool-use
 Whether the agent can invoke shell commands is a **config-level opt-in** (not always-on).
@@ -78,46 +114,32 @@ run `go test` to verify its output declares that explicitly. This scopes the bla
 makes capabilities auditable from the config alone.
 
 ### Distribution
-`tool-builder` itself ships as a single binary (Go + goreleaser).
-Phase 1 tools require tool-builder to be installed at runtime.
-Phase 2 (generated) tools are self-contained.
+- `tool-builder` itself: single binary via goreleaser (tool authors install this)
+- Generated tools: single binary, distributed however the tool author chooses
+  (goreleaser, homebrew, direct download, etc.)
 
 ## Key open questions
 
-1. **Interaction model for file changes**: how does the agent present proposed edits before
-   writing? Options:
-   - Accept/reject/refine loop (like prpolish's patch viewer)
-   - Show diff, prompt for confirmation, then write
-   - Write directly with undo support
-2. **Ambient context**: should a running tool automatically pick up a `CLAUDE.md` from the
-   working directory to inject additional project context?
-3. **Multi-command tools**: does phase 1 need subcommands, or is a single-command tool enough
-   to validate the schema?
+1. **Ambient context**: should a generated tool automatically read a `CLAUDE.md`
+   from the working directory and inject it as additional system context?
+2. **URL prompt caching at build time**: fetch once and embed, or keep as runtime
+   fetch? Embedding gives a truly offline binary; runtime fetch gives fresher content.
+   Decided: embed at build time for standalone guarantees; document the trade-off.
 
 ## Technology decisions
 
 - **Language**: Go — ships as single binary, strong CLI ecosystem
-- **CLI framework**: Cobra
+- **CLI framework**: Cobra (in tool-builder CLI and in generated binaries)
 - **LLM**: Anthropic Claude via the Anthropic Go SDK
-- **Config parsing**: `go-yaml` (viper is overkill for a single config file)
+- **Config parsing**: `go-yaml`
 - **Release**: goreleaser
-
-## Phase 1 goals
-
-1. Repo scaffolding: go module, Cobra root command, Makefile, goreleaser config
-2. Config schema: define and document the YAML format (see `config-schema.md`)
-3. Interpreter: `tool-builder run --config <file> [args]` runs a config-defined agent
-4. Working example: a `gotest` config that generates Go tests for a given file
-
-## What to borrow from prpolish
-
-- `internal/claude/client.go` — streaming Claude client wrapper
-- `internal/agent/agent.go` — agent abstraction (input → prompt → LLM → output)
-- `internal/agent/<name>/prompt.md` — prompt-as-sidecar-file pattern
-- `.goreleaser.yaml` — release pipeline
+- **Code generation**: text/template for `main.go`; `go build` via `os/exec`
 
 ## Status
 
-- 2026-05-06: Project started from scratch. Design phase. No code yet.
-  Decided: YAML config, interpreted execution model first, file-edit output model,
-  tool-use as explicit opt-in in config.
+- 2026-05-06: Project started. Decided YAML config, file-edit output model,
+  tool-use as explicit config opt-in.
+- 2026-05-06: Implemented interpreted runner (`run` command) and validated
+  end-to-end with commit-msg sample app.
+- 2026-05-06: Switched primary model to generated binaries (`build` command).
+  `run` retained for development iteration. Requires `internal/` → `pkg/` rename.
