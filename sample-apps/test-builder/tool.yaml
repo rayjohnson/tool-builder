@@ -37,7 +37,7 @@ commands:
     flags:
       - name: output
         short: o
-        description: Output file path (default: replaces .go with _test.go)
+        description: "Output file path (default: replaces .go with _test.go)"
         type: string
       - name: run
         short: r
