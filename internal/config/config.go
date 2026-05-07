@@ -189,10 +189,9 @@ func (c *Config) validate() error {
 				return fmt.Errorf("unknown tui tool %q", name)
 			}
 		}
-		knownWeb := map[string]bool{"fetch": true, "search": true}
 		for _, name := range c.ToolUse.Web {
-			if !knownWeb[name] {
-				return fmt.Errorf("tool_use.web entry %q is not valid (must be \"fetch\" or \"search\")", name)
+			if name != "fetch" {
+				return fmt.Errorf("tool_use.web entry %q is not valid (only \"fetch\" is supported)", name)
 			}
 		}
 	}

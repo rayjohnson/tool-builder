@@ -270,10 +270,10 @@ commands:
     description: do it
 tool_use:
   enabled: true
-  web: [fetch, search]
+  web: [fetch]
 `
 	cfg := loadFromString(t, yaml)
-	require.Equal(t, []string{"fetch", "search"}, cfg.ToolUse.Web)
+	require.Equal(t, []string{"fetch"}, cfg.ToolUse.Web)
 }
 
 func TestLoad_Context(t *testing.T) {

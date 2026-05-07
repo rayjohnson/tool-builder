@@ -2,13 +2,10 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
-	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -21,11 +18,6 @@ import (
 type webFetchInput struct {
 	URL      string `json:"url"       jsonschema:"required,description=The URL to fetch"`
 	MaxBytes int    `json:"max_bytes" jsonschema:"description=Maximum response bytes to return (default 20000)"`
-}
-
-type webSearchInput struct {
-	Query string `json:"query" jsonschema:"required,description=Search query"`
-	Count int    `json:"count" jsonschema:"description=Number of results to return (default 5, max 10)"`
 }
 
 // buildWebTools returns tools for each name in cfg.ToolUse.Web.
@@ -43,8 +35,6 @@ func buildWebTools(cfg *config.Config) ([]anthropic.BetaTool, error) {
 		switch name {
 		case "fetch":
 			t, err = buildWebFetchTool()
-		case "search":
-			t, err = buildWebSearchTool()
 		default:
 			return nil, fmt.Errorf("unknown web tool %q", name)
 		}
@@ -101,79 +91,6 @@ func execWebFetch(input webFetchInput) (anthropic.BetaToolResultBlockParamConten
 	}
 
 	return okResult(text)
-}
-
-func buildWebSearchTool() (anthropic.BetaTool, error) {
-	return toolrunner.NewBetaToolFromJSONSchema(
-		"web_search",
-		"Search the web and return a list of results with titles, URLs, and descriptions. Requires BRAVE_API_KEY environment variable.",
-		func(_ context.Context, input webSearchInput) (anthropic.BetaToolResultBlockParamContentUnion, error) {
-			return execWebSearch(input)
-		},
-	)
-}
-
-func execWebSearch(input webSearchInput) (anthropic.BetaToolResultBlockParamContentUnion, error) {
-	apiKey := os.Getenv("BRAVE_API_KEY")
-	if apiKey == "" {
-		return errResult("web_search: BRAVE_API_KEY not set")
-	}
-
-	count := input.Count
-	if count == 0 {
-		count = 5
-	}
-	if count > 10 {
-		count = 10
-	}
-
-	searchURL := fmt.Sprintf(
-		"https://api.search.brave.com/res/v1/web/search?q=%s&count=%d",
-		url.QueryEscape(input.Query),
-		count,
-	)
-
-	req, err := http.NewRequest(http.MethodGet, searchURL, nil)
-	if err != nil {
-		return errResult(fmt.Sprintf("web_search: building request: %v", err))
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Subscription-Token", apiKey)
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return errResult(fmt.Sprintf("web_search: request failed: %v", err))
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return errResult(fmt.Sprintf("web_search: reading response: %v", err))
-	}
-
-	var result struct {
-		Web struct {
-			Results []struct {
-				Title       string `json:"title"`
-				URL         string `json:"url"`
-				Description string `json:"description"`
-			} `json:"results"`
-		} `json:"web"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return errResult(fmt.Sprintf("web_search: parsing response: %v", err))
-	}
-
-	var sb strings.Builder
-	for i, r := range result.Web.Results {
-		fmt.Fprintf(&sb, "%d. %s\n   %s\n   %s\n\n", i+1, r.Title, r.URL, r.Description)
-	}
-
-	if sb.Len() == 0 {
-		return okResult("No results found.")
-	}
-	return okResult(strings.TrimRight(sb.String(), "\n"))
 }
 
 // HTML stripping helpers.
