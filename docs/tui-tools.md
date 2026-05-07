@@ -172,6 +172,51 @@ Use the returned text as the final commit message.
 
 ---
 
+## show_diff
+
+Shows a scrollable colored unified diff between two versions of a file and returns
+the user's decision.
+
+**Use when:** you are about to write or edit a file and want the user to review the
+specific change before it is applied. The diff viewer is scrollable and shows standard
+unified diff format with green additions, red removals, and gray context lines.
+
+### Input
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `old_content` | string | yes | Original file content |
+| `new_content` | string | yes | Proposed new content |
+| `filename` | string | no | Filename shown in the header |
+
+### Return value
+
+- `"accept"` — user approved the change; proceed with writing
+- `"reject"` — user rejected the change; skip it
+- `"<feedback text>"` — user typed feedback; revise your proposal and call `show_diff` again
+
+If old_content and new_content are identical, returns `"accept"` immediately.
+
+### Keyboard controls
+
+| Key | Action |
+|---|---|
+| y / Enter | Accept |
+| n / q / Esc | Reject |
+| f | Open feedback input |
+| ↑ / k, ↓ / j | Scroll |
+| PgUp / PgDn | Scroll page |
+
+### Example system prompt usage
+
+```markdown
+Before applying any change with edit_file, call show_diff with the original and proposed
+content. If the result is "accept", proceed with edit_file. If "reject", skip the file.
+If feedback text is returned, revise your proposed change and call show_diff again.
+```
+
+---
+
 ## Calling pattern
 
 TUI tools serialize with other terminal output via a mutex — only one TUI interaction runs

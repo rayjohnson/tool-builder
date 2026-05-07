@@ -21,13 +21,15 @@ file_access:
 
 tool_use:
   enabled: true
+  tui:
+    - show_diff
   shell:
     - command: golangci-lint
       args: [run]
     - command: go
       args: [build, vet]
 
-output_mode: interactive
+output_mode: direct
 
 commands:
   - name: default

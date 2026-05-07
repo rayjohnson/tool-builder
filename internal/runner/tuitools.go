@@ -33,6 +33,8 @@ func buildTUITools(cfg *config.Config, mu *sync.Mutex) ([]anthropic.BetaTool, er
 			t, err = buildTextInputTool(mu)
 		case "text_editor":
 			t, err = buildTextEditorTool(mu)
+		case "show_diff":
+			t, err = buildShowDiffTool(mu)
 		default:
 			return nil, fmt.Errorf("unknown TUI tool %q", name)
 		}
@@ -124,6 +126,30 @@ func buildTextInputTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
 				return errResult(fmt.Sprintf("text_input error: %s", err))
 			}
 			return okResult(value)
+		},
+	)
+}
+
+func buildShowDiffTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
+	type input struct {
+		OldContent string `json:"old_content" jsonschema:"required,description=Original file content"`
+		NewContent string `json:"new_content" jsonschema:"required,description=Proposed new content"`
+		Filename   string `json:"filename"    jsonschema:"description=Filename shown in the diff header"`
+	}
+	return toolrunner.NewBetaToolFromJSONSchema(
+		"show_diff",
+		"Show the user a scrollable colored diff between original and proposed content. "+
+			"Call this before writing a file to let the user review the change. "+
+			"Returns \"accept\", \"reject\", or feedback text the user typed. "+
+			"If feedback is returned, revise the proposal and call show_diff again.",
+		func(_ context.Context, in input) (anthropic.BetaToolResultBlockParamContentUnion, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			result, err := tui.ShowDiff(in.Filename, in.OldContent, in.NewContent)
+			if err != nil {
+				return errResult(fmt.Sprintf("show_diff error: %s", err))
+			}
+			return okResult(result)
 		},
 	)
 }

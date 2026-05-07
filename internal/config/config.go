@@ -183,7 +183,7 @@ func (c *Config) validate() error {
 		return fmt.Errorf("output_mode must be confirm, interactive, or direct")
 	}
 	if c.ToolUse != nil {
-		known := map[string]bool{"list_select": true, "confirm": true, "text_input": true, "text_editor": true}
+		known := map[string]bool{"list_select": true, "confirm": true, "text_input": true, "text_editor": true, "show_diff": true}
 		for _, name := range c.ToolUse.TUI {
 			if !known[name] {
 				return fmt.Errorf("unknown tui tool %q", name)

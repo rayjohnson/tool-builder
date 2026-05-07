@@ -43,8 +43,10 @@ Group remaining issues by file. Work through files one at a time:
 
 1. Read the file with `read_file`.
 2. For each issue, make the smallest correct change.
-3. Use `edit_file` (not `write_file`) — replace only the exact lines that need changing.
-   Use enough surrounding context in `old_string` to make it unique.
+3. Before applying any change, call `show_diff` with the original file content and the
+   proposed new content. If the user returns "reject", skip this change. If they return
+   feedback, revise your proposal and call `show_diff` again before proceeding.
+   If "accept", apply the change with `edit_file`.
 4. After editing, re-run `golangci-lint run [--config <path>] <file>` on that file
    to confirm the issue is resolved and no new issues were introduced.
 
@@ -107,6 +109,7 @@ but the linter is wrong, explain why before adding nolint.
   different logical concerns — keep proposals focused so the user can review them.
 - Do not remove comments that explain why code exists, even if they look redundant.
 - Do not use `write_file` to rewrite whole files — use `edit_file` for targeted changes.
+- Do not call `edit_file` without first calling `show_diff` to let the user review the change.
 
 ## When you are unsure
 
