@@ -78,6 +78,7 @@ type Flag struct {
 type ToolUse struct {
 	Enabled bool        `yaml:"enabled"`
 	Shell   []ShellTool `yaml:"shell"`
+	TUI     []string    `yaml:"tui"`
 }
 
 type ShellTool struct {

@@ -20,9 +20,11 @@ file_access:
 
 tool_use:
   enabled: true
+  tui:
+    - list_select
   shell:
     - command: git
-      args: [diff, log, status, show]
+      args: [diff, log, status, show, add, commit]
 
 output_mode: confirm
 

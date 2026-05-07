@@ -63,7 +63,11 @@ func (r *Runner) Run(ctx context.Context, cmd *config.Command, argFiles []string
 	if err != nil {
 		return err
 	}
-	tools := append(fileTools, shellTools...)
+	tuiTools, err := buildTUITools(r.cfg, &mu)
+	if err != nil {
+		return err
+	}
+	tools := append(fileTools, append(shellTools, tuiTools...)...)
 
 	// 4. Create Anthropic client.
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
