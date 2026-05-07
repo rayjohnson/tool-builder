@@ -37,13 +37,15 @@ and an `ANTHROPIC_API_KEY`, no tool-builder install required.
 ```sh
 cd sample-apps/commit-msg
 make build          # produces ./bin/commit-msg
-./bin/commit-msg    # run from any git repo
+make install        # copies to ~/bin/commit-msg
+commit-msg          # run from any git repo
 ```
 
 ```sh
 cd sample-apps/test-builder
 make build          # produces ./bin/test-builder
-./bin/test-builder generate ./internal/foo/bar.go
+make install        # copies to ~/bin/test-builder
+test-builder generate ./internal/foo/bar.go
 ```
 
 ## Structure of each sample
