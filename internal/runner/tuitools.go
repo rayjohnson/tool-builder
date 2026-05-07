@@ -140,7 +140,8 @@ func buildShowDiffTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
 		"show_diff",
 		"Show the user a scrollable colored diff between original and proposed content. "+
 			"Call this before writing a file to let the user review the change. "+
-			"Returns \"accept\", \"reject\", or feedback text the user typed. "+
+			"Returns \"accept\", \"accept_all\", \"reject\", or feedback text the user typed. "+
+			"\"accept_all\" means the user wants to apply this diff and all future diffs without further review — skip show_diff for all remaining changes and apply them directly. "+
 			"If feedback is returned, revise the proposal and call show_diff again.",
 		func(_ context.Context, in input) (anthropic.BetaToolResultBlockParamContentUnion, error) {
 			mu.Lock()

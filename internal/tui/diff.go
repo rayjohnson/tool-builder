@@ -72,6 +72,12 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			m.result = "reject"
+			m.done = true
+			return m, tea.Quit
+		}
+
 		if m.state == stateFeedback {
 			switch msg.String() {
 			case "enter":
@@ -99,6 +105,10 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "y", "enter":
 			m.result = "accept"
+			m.done = true
+			return m, tea.Quit
+		case "a":
+			m.result = "accept_all"
 			m.done = true
 			return m, tea.Quit
 		case "n", "q", "esc":
@@ -140,7 +150,7 @@ func (m diffModel) View() string {
 	if m.state == stateFeedback {
 		footer = "\n  Feedback: " + m.input.View() + "  [enter] submit  [esc] cancel  "
 	} else {
-		footer = "\n  [y] accept  [n] reject  [f] feedback  [↑↓] scroll  "
+		footer = "\n  [y] accept  [a] accept all remaining  [n] reject  [f] feedback  [↑↓] scroll  "
 	}
 
 	return titleBar + m.viewport.View() + footer
