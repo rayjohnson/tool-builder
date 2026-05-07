@@ -15,7 +15,21 @@
       "Bash(golangci-lint run *)",
       "Bash(golangci-lint --version)",
       "Bash(./tool-builder --help)",
-      "Bash(./tool-builder run *)"
+      "Bash(./tool-builder run *)",
+      "Bash(go test *)",
+      "Bash(gh run *)",
+      "Bash(git checkout *)",
+      "Bash(./tool-builder build *)",
+      "Bash(/tmp/test-builder --help)",
+      "Bash(/tmp/test-builder generate *)",
+      "Bash(make coverage *)",
+      "Bash(gh pr *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git restore *)",
+      "Bash(go tool *)"
     ]
   }
 }
