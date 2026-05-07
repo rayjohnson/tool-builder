@@ -7,35 +7,27 @@ Cross off items as they are completed; add new ones as they come up.
 
 ## High priority — needed to have a working end-to-end tool
 
-- [ ] **System prompt assembly** (`internal/systemprompt`)
-  Load and concatenate system prompts from all three sources: inline `text`,
-  local `file` (relative to the config file), and `url` (fetched once per
-  session, cached in memory). This is a prerequisite for the runner.
+- [x] **System prompt assembly** (`internal/systemprompt`)
+  Loads from `text`, `file` (relative to config), and `url` (session-cached).
 
-- [ ] **Streaming Anthropic client**
-  The current `anthropic.Client.Send` does a blocking request and returns
-  when done. For interactive CLI use, streaming is essential UX — the user
-  should see tokens arrive in real time. Add a `Stream` method that writes
-  to an `io.Writer` as chunks arrive.
+- [x] **Streaming Anthropic client**
+  Uses `BetaToolRunnerStreaming.AllStreaming`; prints text tokens in real time.
 
-- [ ] **Runner / agent loop** (`internal/runner`)
-  The core of the tool. Given a loaded config and a command invocation:
-  1. Assemble the full system prompt
-  2. Read positional arg files and inject them as the first user message
-  3. Run the streaming conversation loop (user input → LLM → output)
-  4. When the LLM proposes a file write, hand off to the output handler
-  Wire `cmd/run.go` up to this once it exists.
+- [x] **Runner / agent loop** (`internal/runner`)
+  Assembles system prompt, injects arg files as initial message, runs the
+  streaming conversation loop via the SDK's `BetaToolRunnerStreaming`.
 
-- [ ] **File tools** — read and write scoped to `file_access`
-  Give the agent `read_file` and `write_file` tool-use functions. Enforce
-  that every path the agent tries to access is within the declared
-  `file_access.read` / `file_access.write` patterns. Reject out-of-scope
-  paths with a clear error rather than silently allowing or denying.
+- [x] **File tools** — read and write scoped to `file_access`
+  `read_file` and `write_file` tools with scope validation against
+  `file_access.read` / `file_access.write` patterns (glob + dir supported).
 
-- [ ] **`output_mode: confirm`** — diff + yes/no before writing
-  When the agent produces a file write, show a unified diff and prompt the
-  user to confirm before touching the filesystem. This is the default mode
-  and the most important one to get right first.
+- [x] **`output_mode: confirm`** — diff + yes/no before writing
+  Shows old vs. new content with +/- coloring; prompts y/N before writing.
+
+- [ ] **End-to-end smoke test**
+  Run one of the sample apps against a real file and verify the full pipeline
+  works: system prompt loads, file injects, LLM streams, write_file confirms.
+  Known gaps to discover: error messages, edge cases in arg parsing.
 
 ---
 
