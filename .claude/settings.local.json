@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(mkdir -p PLANS)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git rm *)",
+      "Bash(xargs cat *)",
+      "Bash(go version *)",
+      "Bash(go mod *)",
+      "Bash(go get *)",
+      "Bash(go build *)",
+      "Bash(go vet *)",
+      "Bash(golangci-lint run *)",
+      "Bash(golangci-lint --version)",
+      "Bash(./tool-builder --help)",
+      "Bash(./tool-builder run *)"
+    ]
+  }
+}

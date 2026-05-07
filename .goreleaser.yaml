@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: tool-builder
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.buildTime={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+
+release:
+  github:
+    owner: rayjohnson
+    name: tool-builder
+  draft: false
+  prerelease: auto
+
+checksum:
+  name_template: "checksums.txt"
+
+brews:
+  - repository:
+      owner: rayjohnson
+      name: homebrew-tap
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: "https://github.com/rayjohnson/tool-builder"
+    description: "Build AI-powered CLI tools from a YAML config"
+    license: "MIT"
+    install: |
+      bin.install "tool-builder"
+    test: |
+      system "#{bin}/tool-builder", "--help"
