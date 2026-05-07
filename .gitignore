@@ -1,10 +1,12 @@
 # Binaries
 tool-builder
 dist/
+sample-apps/*/bin/
 
 # Go build artifacts
 *.test
 *.out
+coverage.html
 
 # Environment
 .env

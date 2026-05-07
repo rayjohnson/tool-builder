@@ -1,4 +1,4 @@
-.PHONY: build test coverage lint check clean
+.PHONY: build install test coverage lint check clean
 .DELETE_ON_ERROR:
 
 COVERAGE_THRESHOLD ?= 20
@@ -13,6 +13,10 @@ tool-builder: $(SOURCES)
 	@go build -ldflags "$(LDFLAGS)" -o $@ .
 
 build: tool-builder
+
+INSTALL_DIR ?= /usr/local/bin
+install: tool-builder
+	install -m 755 tool-builder $(INSTALL_DIR)/tool-builder
 
 coverage.out: $(SOURCES)
 	@go test -coverprofile=$@ ./...
