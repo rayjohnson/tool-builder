@@ -56,7 +56,7 @@ func runBuild(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("resolving config dir: %w", err)
 	}
 
-	configBytes, err := os.ReadFile(buildConfigPath) //nolint:gosec // user-supplied path
+	configBytes, err := os.ReadFile(buildConfigPath)
 	if err != nil {
 		return fmt.Errorf("reading config: %w", err)
 	}
@@ -77,13 +77,12 @@ func runBuild(_ *cobra.Command, _ []string) error {
 
 	tmpDir, err := codegen.Generate(configBytes, prompts, cfg.Name, toolBuilderVersion, toolBuilderModDir)
 	if err != nil {
-		_ = os.RemoveAll(tmpDir) //nolint:gosec // tmpDir comes from os.MkdirTemp
+		_ = os.RemoveAll(tmpDir)
 		return fmt.Errorf("generating build directory: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
 	fmt.Fprintf(os.Stdout, "Building %s...\n", cfg.Name)
-	//nolint:gosec // arguments are constructed internally, not from user input
 	goCmd := exec.Command("go", "build", "-mod=mod", "-o", absOutput, ".")
 	goCmd.Dir = tmpDir
 	goCmd.Stdout = os.Stdout
@@ -107,7 +106,7 @@ func collectPrompts(cfg *config.Config, configDir string) (map[string][]byte, er
 			if !filepath.IsAbs(path) {
 				path = filepath.Join(configDir, src.File)
 			}
-			data, err := os.ReadFile(path) //nolint:gosec // path from trusted config file
+			data, err := os.ReadFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("reading prompt file %q: %w", src.File, err)
 			}

@@ -1,4 +1,3 @@
-//nolint:gosec // all file reads in this test are from temp dirs created by the test itself
 package codegen_test
 
 import (
