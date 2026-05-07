@@ -1,0 +1,16 @@
+# Binaries
+tool-builder
+dist/
+
+# Go build artifacts
+*.test
+*.out
+
+# Environment
+.env
+.env.local
+
+# Editor
+.idea/
+.vscode/
+*.swp
