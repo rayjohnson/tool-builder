@@ -127,7 +127,7 @@ func (r *Runner) buildInitialMessage(cmd *config.Command, argFiles []string, use
 			if !filepath.IsAbs(f) {
 				absPath = filepath.Join(r.workDir, f)
 			}
-			data, err := os.ReadFile(absPath) //nolint:gosec
+			data, err := os.ReadFile(absPath)
 			if err != nil {
 				return "", fmt.Errorf("reading argument file %q: %w", f, err)
 			}

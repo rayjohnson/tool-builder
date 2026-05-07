@@ -41,7 +41,7 @@ func resolve(src config.PromptSource, configDir string) (string, error) {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(configDir, path)
 		}
-		data, err := os.ReadFile(path) //nolint:gosec // path is from trusted config file
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("reading prompt file %q: %w", src.File, err)
 		}

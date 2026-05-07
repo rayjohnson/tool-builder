@@ -11,7 +11,7 @@ import (
 // confirmWrite shows the proposed file content and asks the user to confirm.
 // Returns true if the user confirmed, false if rejected or input ended.
 func confirmWrite(path, proposed string, in io.Reader, out io.Writer) (bool, error) {
-	existing, err := os.ReadFile(path) //nolint:gosec
+	existing, err := os.ReadFile(path)
 	isNew := err != nil
 
 	fmt.Fprintln(out)
