@@ -24,6 +24,11 @@ Cross off items as they are completed; add new ones as they come up.
 - [x] **`output_mode: confirm`** — diff + yes/no before writing
   Shows old vs. new content with +/- coloring; prompts y/N before writing.
 
+- [ ] **Flag values injected into command prompt**
+  The runner currently ignores flag values (e.g. `--hint` on commit-msg).
+  Flag values declared in the config should be injected into the prompt
+  context so the agent can use them.
+
 - [ ] **End-to-end smoke test**
   Run one of the sample apps against a real file and verify the full pipeline
   works: system prompt loads, file injects, LLM streams, write_file confirms.
