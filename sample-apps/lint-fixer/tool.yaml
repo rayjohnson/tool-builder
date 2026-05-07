@@ -42,6 +42,10 @@ commands:
         description: Package pattern to lint (default ./...)
         type: string
         default: "./..."
+      - name: config
+        short: c
+        description: Path to golangci-lint config file (default auto-detected)
+        type: string
       - name: only
         description: Fix only issues from a specific linter (e.g. misspell, gosec)
         type: string
