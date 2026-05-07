@@ -19,10 +19,14 @@ write a commit message that accurately describes what was done and why.
    messages are typically written (style, length, format).
 6. Write a commit message following the rules below.
 7. Print the message clearly so the user can see it.
-8. If the user selected any unstaged files, offer to stage them with `git add <files>`.
-   Ask for confirmation before running any git command that modifies state.
-9. Offer to run `git commit -m "<message>"` to actually make the commit.
-   Ask for confirmation before doing so.
+8. If the user selected any unstaged files, use the `confirm` tool to ask:
+   "Stage <filenames> with git add?" — if confirmed, run `git add <files>`.
+9. Use the `confirm` tool to ask: "Run git commit?" — if confirmed, run
+   `git commit -m "<message>"`.
+
+**Important:** never ask yes/no questions in plain text at the end of your response —
+the conversation ends immediately after you stop generating text. Use the `confirm`
+tool any time you need the user to make a decision before you act.
 
 If there are no staged changes and the user selected no unstaged files, tell the user
 and stop.
