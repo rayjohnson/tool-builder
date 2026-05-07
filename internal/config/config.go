@@ -9,17 +9,25 @@ import (
 )
 
 type Config struct {
-	Name          string        `yaml:"name"`
-	Version       string        `yaml:"version"`
-	Description   string        `yaml:"description"`
-	Model         string        `yaml:"model"` // "provider/model-id"
-	ModelParams   ModelParams   `yaml:"model_params"`
-	Env           []EnvVar      `yaml:"env"`
-	SystemPrompts []PromptSource `yaml:"system_prompts"`
-	FileAccess    FileAccess    `yaml:"file_access"`
-	Commands      []Command     `yaml:"commands"`
-	ToolUse       *ToolUse      `yaml:"tool_use"`
-	OutputMode    string        `yaml:"output_mode"`
+	Name          string          `yaml:"name"`
+	Version       string          `yaml:"version"`
+	Description   string          `yaml:"description"`
+	Model         string          `yaml:"model"` // "provider/model-id"
+	ModelParams   ModelParams     `yaml:"model_params"`
+	Env           []EnvVar        `yaml:"env"`
+	SystemPrompts []PromptSource  `yaml:"system_prompts"`
+	Context       []ContextSource `yaml:"context"`
+	FileAccess    FileAccess      `yaml:"file_access"`
+	Commands      []Command       `yaml:"commands"`
+	ToolUse       *ToolUse        `yaml:"tool_use"`
+	OutputMode    string          `yaml:"output_mode"`
+}
+
+// ContextSource is one entry in context. Exactly one field should be set.
+// Content is loaded at runtime from the working directory and injected into the system prompt.
+type ContextSource struct {
+	Path string `yaml:"path"` // relative to working directory; silently skipped if missing
+	URL  string `yaml:"url"`  // fetched at runtime; silently skipped on error
 }
 
 type ModelParams struct {
@@ -59,6 +67,7 @@ type Command struct {
 	Prompt      string `yaml:"prompt"`
 	Args        []Arg  `yaml:"args"`
 	Flags       []Flag `yaml:"flags"`
+	Session     bool   `yaml:"session"`
 }
 
 type Arg struct {
@@ -79,6 +88,7 @@ type ToolUse struct {
 	Enabled bool        `yaml:"enabled"`
 	Shell   []ShellTool `yaml:"shell"`
 	TUI     []string    `yaml:"tui"`
+	Web     []string    `yaml:"web"`
 }
 
 type ShellTool struct {
@@ -177,6 +187,12 @@ func (c *Config) validate() error {
 		for _, name := range c.ToolUse.TUI {
 			if !known[name] {
 				return fmt.Errorf("unknown tui tool %q", name)
+			}
+		}
+		knownWeb := map[string]bool{"fetch": true, "search": true}
+		for _, name := range c.ToolUse.Web {
+			if !knownWeb[name] {
+				return fmt.Errorf("tool_use.web entry %q is not valid (must be \"fetch\" or \"search\")", name)
 			}
 		}
 	}

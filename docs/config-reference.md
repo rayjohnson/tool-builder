@@ -15,8 +15,9 @@ from this file.
 | `model_params` | object | no | — | Token and temperature overrides |
 | `env` | list | no | — | Environment variable declarations |
 | `system_prompts` | list | yes | — | The tool's domain knowledge |
+| `context` | list | no | — | Files/URLs loaded at runtime and injected into the system prompt |
 | `file_access` | object | no | — | Read/write scope in the working directory |
-| `tool_use` | object | no | — | Shell and TUI tool opt-ins |
+| `tool_use` | object | no | — | Shell, TUI, and web tool opt-ins |
 | `output_mode` | string | no | `confirm` | How file writes are presented |
 | `commands` | list | yes | — | Subcommands with prompts, args, and flags |
 
@@ -115,6 +116,31 @@ At least one entry is required.
 
 ---
 
+## context
+
+A list of files or URLs loaded at **runtime** from the user's working directory and
+appended to the system prompt. Use this to inject project-specific context that changes
+between invocations — a `AGENTS.md` file, a local schema, a changelog, etc.
+
+```yaml
+context:
+  - path: AGENTS.md          # relative to the working directory; skipped if missing
+  - path: docs/schema.json
+  - url: https://example.com/api-spec.md   # fetched at runtime; skipped on error
+```
+
+Each entry uses exactly one key:
+
+| Key | Description |
+|---|---|
+| `path` | Path relative to the working directory. Silently skipped if the file does not exist. |
+| `url` | URL fetched via HTTP GET at runtime. Silently skipped on network or HTTP errors. |
+
+Content is formatted under a `## Project context` heading with XML-style tags naming
+each source. If no sources produce content (all missing or errored), nothing is appended.
+
+---
+
 ## file_access
 
 Declares what files the agent may read and write in the user's working directory. Without
@@ -143,6 +169,28 @@ Each pattern entry uses exactly one key:
 
 `dir: .` means the entire working directory tree. Patterns are evaluated against the
 working directory where the tool is invoked, not the config file location.
+
+### Built-in file tools
+
+When `file_access` is configured, tool-builder automatically registers these built-in
+file tools for the agent:
+
+| Tool | Registered when | Description |
+|---|---|---|
+| `read_file` | Any `read` pattern is configured | Read a file within the read scope |
+| `write_file` | Any `write` pattern is configured | Write full file content within the write scope |
+| `edit_file` | Any `write` pattern is configured | Make a targeted replacement in an existing file |
+
+#### edit_file
+
+`edit_file` is the preferred tool for modifying existing files. It takes an exact string
+to find (`old_string`) and a replacement (`new_string`), and applies a single targeted
+edit. The `old_string` must appear **exactly once** in the file — if it matches zero or
+more than one time the tool returns an error instructing the agent to add more surrounding
+context.
+
+`edit_file` is always registered alongside `write_file` whenever write access is
+configured. No additional config is needed.
 
 ---
 
@@ -201,6 +249,27 @@ A list of TUI tool names to enable. Each name must be one of the four built-in t
 | `text_editor` | Opens `$EDITOR` with a draft; returns edited content |
 
 See [tui-tools.md](tui-tools.md) for full input schemas and usage guidance.
+
+### web entries
+
+A list of web tool names to enable. Each name must be one of the two built-in web tools:
+
+| Name | Description | Requirement |
+|---|---|---|
+| `fetch` | Fetches a URL and returns its content as plain text | None |
+| `search` | Searches the web and returns ranked results | `BRAVE_API_KEY` env var must be set |
+
+```yaml
+tool_use:
+  enabled: true
+  web:
+    - fetch
+    - search
+```
+
+`web_search` requires a [Brave Search API](https://brave.com/search/api/) key set in the
+`BRAVE_API_KEY` environment variable. If the key is not set when the agent calls
+`web_search`, the tool returns an error message to the agent rather than failing the run.
 
 ---
 
@@ -263,6 +332,7 @@ exposes them as subcommands.
 | `prompt` | string | no | Inline text appended to system prompts for this command |
 | `args` | list | no | Positional arguments |
 | `flags` | list | no | Named flags |
+| `session` | bool | no | If true, after each agent turn prompt the user for a follow-up message, continuing the conversation until the user types `exit`, `quit`, or sends EOF |
 
 ### args entries
 
@@ -298,4 +368,5 @@ Required fields: `name`, `model`, at least one `system_prompts` entry, at least 
 - `output_mode` must be `confirm`, `interactive`, or `direct`
 - Each command must have a `name`
 - Each `tool_use.tui` entry must be one of the four known tool names
+- Each `tool_use.web` entry must be `fetch` or `search`
 - TUI tool `enabled: true` must be set for any shell or TUI tools to be registered

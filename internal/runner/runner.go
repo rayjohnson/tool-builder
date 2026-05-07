@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	anthropic "github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -47,6 +49,12 @@ func (r *Runner) Run(ctx context.Context, cmd *config.Command, argFiles []string
 		return fmt.Errorf("loading system prompts: %w", err)
 	}
 
+	// Append runtime context (from context: entries in config).
+	runtimeCtx := loadRuntimeContext(r.cfg.Context, r.workDir)
+	if runtimeCtx != "" {
+		systemPrompt = systemPrompt + "\n\n" + runtimeCtx
+	}
+
 	// 2. Build initial user message.
 	initialMsg, err := r.buildInitialMessage(cmd, argFiles, userPrompt)
 	if err != nil {
@@ -67,7 +75,11 @@ func (r *Runner) Run(ctx context.Context, cmd *config.Command, argFiles []string
 	if err != nil {
 		return err
 	}
-	tools := append(fileTools, append(shellTools, tuiTools...)...)
+	webTools, err := buildWebTools(r.cfg)
+	if err != nil {
+		return err
+	}
+	tools := append(fileTools, append(shellTools, append(tuiTools, webTools...)...)...)
 
 	// 4. Create Anthropic client.
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
@@ -79,44 +91,125 @@ func (r *Runner) Run(ctx context.Context, cmd *config.Command, argFiles []string
 		maxTokens = 8096
 	}
 
-	// 6. Create streaming tool runner.
-	params := anthropic.BetaToolRunnerParams{
-		BetaMessageNewParams: anthropic.BetaMessageNewParams{
-			Model:     anthropic.Model(r.cfg.ModelID()),
-			MaxTokens: maxTokens,
-			System: []anthropic.BetaTextBlockParam{
-				{Text: systemPrompt},
-			},
-			Messages: []anthropic.BetaMessageParam{
-				anthropic.NewBetaUserMessage(anthropic.NewBetaTextBlock(initialMsg)),
-			},
-		},
+	// 6. Session loop — runs once for non-session commands, loops for session mode.
+	messages := []anthropic.BetaMessageParam{
+		anthropic.NewBetaUserMessage(anthropic.NewBetaTextBlock(initialMsg)),
 	}
 
-	streamRunner := client.Beta.Messages.NewToolRunnerStreaming(tools, params)
-
-	// 7. Stream conversation, printing text tokens as they arrive.
-	turnNum := 0
-	for eventSeq, err := range streamRunner.AllStreaming(ctx) {
-		if err != nil {
-			return fmt.Errorf("agent stream error: %w", err)
+	for {
+		params := anthropic.BetaToolRunnerParams{
+			BetaMessageNewParams: anthropic.BetaMessageNewParams{
+				Model:     anthropic.Model(r.cfg.ModelID()),
+				MaxTokens: maxTokens,
+				System: []anthropic.BetaTextBlockParam{
+					{Text: systemPrompt},
+				},
+				Messages: messages,
+			},
 		}
-		turnNum++
-		for event, err := range eventSeq {
+
+		streamRunner := client.Beta.Messages.NewToolRunnerStreaming(tools, params)
+
+		// Stream conversation, printing text tokens as they arrive.
+		for eventSeq, err := range streamRunner.AllStreaming(ctx) {
 			if err != nil {
-				return fmt.Errorf("agent stream event error: %w", err)
+				return fmt.Errorf("agent stream error: %w", err)
 			}
-			if e, ok := event.AsAny().(anthropic.BetaRawContentBlockDeltaEvent); ok {
-				if td, ok := e.Delta.AsAny().(anthropic.BetaTextDelta); ok {
-					fmt.Fprint(r.out, td.Text)
+			for event, err := range eventSeq {
+				if err != nil {
+					return fmt.Errorf("agent stream event error: %w", err)
+				}
+				if e, ok := event.AsAny().(anthropic.BetaRawContentBlockDeltaEvent); ok {
+					if td, ok := e.Delta.AsAny().(anthropic.BetaTextDelta); ok {
+						fmt.Fprint(r.out, td.Text)
+					}
 				}
 			}
+			// Print a newline after each assistant turn that produced text.
+			fmt.Fprintln(r.out)
 		}
-		// Print a newline after each assistant turn that produced text.
-		fmt.Fprintln(r.out)
+
+		if err := streamRunner.Err(); err != nil {
+			return err
+		}
+
+		if !cmd.Session {
+			break
+		}
+
+		// Session mode: prompt the user for the next message.
+		fmt.Fprint(r.out, "\n> ")
+		line, err := readline(r.in)
+		if err != nil || strings.TrimSpace(line) == "" {
+			break
+		}
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "exit" || trimmed == "quit" {
+			break
+		}
+
+		// Accumulate history and append the new user message.
+		messages = streamRunner.Messages()
+		messages = append(messages, anthropic.NewBetaUserMessage(anthropic.NewBetaTextBlock(trimmed)))
 	}
 
-	return streamRunner.Err()
+	return nil
+}
+
+// loadRuntimeContext loads content from the given context sources and formats it for the system prompt.
+// path entries are read from the working directory; missing files are silently skipped.
+// url entries are fetched via HTTP; errors are silently skipped.
+// Returns an empty string if no sources produce content.
+func loadRuntimeContext(sources []config.ContextSource, workDir string) string {
+	if len(sources) == 0 {
+		return ""
+	}
+
+	type item struct {
+		name    string
+		content string
+	}
+	var items []item
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	for _, src := range sources {
+		switch {
+		case src.Path != "":
+			absPath := src.Path
+			if !filepath.IsAbs(src.Path) {
+				absPath = filepath.Join(workDir, src.Path)
+			}
+			data, err := os.ReadFile(absPath)
+			if err != nil {
+				continue // silently skip missing files
+			}
+			items = append(items, item{name: src.Path, content: string(data)})
+
+		case src.URL != "":
+			resp, err := httpClient.Get(src.URL) //nolint:noctx
+			if err != nil {
+				continue // silently skip errors
+			}
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				continue
+			}
+			items = append(items, item{name: src.URL, content: string(body)})
+		}
+	}
+
+	if len(items) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## Project context\n")
+	for _, it := range items {
+		fmt.Fprintf(&sb, "\n<%s>\n%s\n</%s>", it.name, it.content, it.name)
+	}
+	return sb.String()
 }
 
 // buildInitialMessage assembles the first user turn: arg files + command prompt + user prompt.
