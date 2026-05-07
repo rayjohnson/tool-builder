@@ -6,6 +6,8 @@ happy paths and error cases.
 
 ## Usage
 
+### Run directly (no build step)
+
 ```sh
 # Generate tests for a source file
 tool-builder run --config tool.yaml generate ./internal/mypackage/foo.go
@@ -16,10 +18,25 @@ tool-builder run --config tool.yaml fix ./internal/mypackage/foo_test.go
 
 Run from the root of the Go repo you want to test.
 
+### Build a standalone binary
+
+```sh
+make build
+# produces ./bin/test-builder
+
+# Then run it from any Go repo — no tool-builder required at runtime:
+./bin/test-builder generate ./internal/mypackage/foo.go
+./bin/test-builder fix ./internal/mypackage/foo_test.go
+```
+
+The binary embeds the config and all prompt files. Distribute it to your team
+and they only need an `ANTHROPIC_API_KEY` — no Go toolchain or tool-builder install.
+
 ## Requirements
 
 - `ANTHROPIC_API_KEY` set in environment
 - `go` in PATH
+- `tool-builder` in PATH (only needed for `run` or `make build`, not the built binary)
 
 ## What it does
 

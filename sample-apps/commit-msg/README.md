@@ -6,21 +6,38 @@ and writes a message following best practices.
 
 ## Usage
 
+### Run directly (no build step)
+
 ```sh
 # Stage your changes first, then:
-tool-builder run --config sample-apps/commit-msg/tool.yaml
+tool-builder run --config tool.yaml
 
 # With a hint about what you're doing:
-tool-builder run --config sample-apps/commit-msg/tool.yaml --hint "fixing the auth regression from last PR"
+tool-builder run --config tool.yaml --hint "fixing the auth regression from last PR"
 ```
 
 Run from the root of the Git repository you want to commit in.
+
+### Build a standalone binary
+
+```sh
+make build
+# produces ./bin/commit-msg
+
+# Then run it from any repo — no tool-builder required at runtime:
+./bin/commit-msg
+./bin/commit-msg --hint "fixing the auth regression from last PR"
+```
+
+The binary embeds the config and all prompt files. Distribute it to your team
+and they only need an `ANTHROPIC_API_KEY` — no Go toolchain or tool-builder install.
 
 ## Requirements
 
 - `ANTHROPIC_API_KEY` set in environment
 - `git` in PATH
 - Changes staged with `git add`
+- `tool-builder` in PATH (only needed for `run` or `make build`, not the built binary)
 
 ## What it does
 
