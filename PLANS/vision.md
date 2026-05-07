@@ -3,19 +3,20 @@
 ## What is tool-builder?
 
 `tool-builder` is a command-line tool that builds new AI-powered command-line tools. It reads
-a config file describing a tool's behavior, prompts, and characteristics, then generates (or runs) a
-fully functional CLI tool backed by an LLM (Claude).
+a config file describing a tool's behavior, prompts, and characteristics, then runs a fully
+functional agentic CLI backed by Claude.
 
-The end goal: a developer downloads `tool-builder` as a single binary, points it at a config file,
-and gets a new CLI tool — no boilerplate, no wiring up API clients, just a config.
+The end goal: a developer writes a YAML config, points `tool-builder` at it, and gets a
+working AI agent CLI — no boilerplate, no wiring up API clients, no CLI scaffolding.
 
 ## Problem being solved
 
 Building AI-powered CLI tools today requires:
-- Wiring up LLM API clients
-- Managing prompts and context
-- Handling streaming output, token limits, retries
+- Wiring up LLM API clients (streaming, retries, token management)
+- Managing prompt composition and context injection
 - Building the CLI scaffolding (flags, help text, subcommands)
+- Implementing file read/write and shell tool-use plumbing
+- Building an interactive accept/reject/refine loop for proposed changes
 
 `tool-builder` absorbs all of that so tool authors only need to declare *what* their tool does.
 
@@ -24,73 +25,99 @@ Building AI-powered CLI tools today requires:
 `prpolish` (at `../../moovfinancial/prpolish`) was a hardcoded AI-assisted PR workflow tool.
 Its agent pattern (`internal/agent/<name>/agent.go` + `prompt.md` sidecar) is worth borrowing,
 but the overall structure was too tightly coupled to a single use case. `tool-builder` inverts
-this: the "agents" and their prompts come from the config file, not from compiled-in packages.
+this: the agents and their prompts come from the config file, not from compiled-in packages.
+
+## What a config-defined tool actually is
+
+A config-defined tool is an **agentic CLI** — it embeds the Anthropic SDK and runs Claude as an
+interactive, conversational agent. It is not a one-shot prompt runner. Think of it as a
+specialized, opinionated Claude Code: it has domain knowledge baked into its system prompts,
+knows which files to read and write, and knows which shell tools it's allowed to call.
+
+Example: a `gotest` tool built with tool-builder would already know your company's Go testing
+standards (from system prompts in the config), accept a file or package as its target, and
+interactively generate or fix tests — asking clarifying questions, proposing changes, and writing
+files when the user confirms.
+
+The primary use case is **file editing and code generation**:
+- Inputs: CLI flags, positional args, files read as context
+- Outputs: files written (the agent manages edits, not stdout)
+- Interaction: the user can guide the agent conversationally during a session
 
 ## Core concepts
 
 ### Config file
-The entry point for every tool built with `tool-builder`. Likely YAML or TOML. Defines:
+YAML. The complete description of a tool. Defines:
 - Tool metadata: name, version, description
-- Commands / subcommands and their behavior
-- Prompts (inline or file references) that drive LLM behavior
-- Input/output shape (stdin, flags, file args, stdout, etc.)
 - Model selection and parameters
-- Optional: tool-use definitions (shell commands the LLM can invoke)
+- System prompts (inline or file references) — baked-in domain knowledge
+- Commands / subcommands: flags, args, per-command prompts
+- Tool-use: which shell commands the agent may invoke (opt-in, explicit allowlist)
 
 ### Prompts
-Prompts are first-class citizens. They can be:
+Prompts are first-class. They can be:
 - Inline strings in the config
-- References to `.md` or `.txt` files (relative to the config)
-- Composed from multiple pieces (system prompt + user prompt template)
+- References to `.md` or `.txt` files (paths relative to the config file)
+- Composed: system prompt(s) encode domain knowledge; per-command prompts focus the task;
+  the user provides the specific runtime request interactively
 
-### Generated vs. interpreted tool
-Two possible execution models (TBD which to start with):
-1. **Interpreted**: `tool-builder run --config mytool.yaml <args>` — `tool-builder` reads the config
-   and runs the tool on the fly. Simple to iterate on.
-2. **Generated**: `tool-builder build --config mytool.yaml` — emits a standalone binary or script.
-   Harder but delivers on the "single download" promise for the built tool.
+### Execution model: interpreted first, generated later
 
-Starting with the interpreted model is lower risk and lets us prove the config schema before
-committing to a code-gen approach.
+**Phase 1 — Interpreted**: `tool-builder run --config mytool.yaml [args]`
+tool-builder stays in the loop at runtime. Users must have tool-builder installed.
+Lets us prove the config schema end-to-end before committing to codegen.
+
+**Phase 2 — Generated**: `tool-builder build --config mytool.yaml`
+Emits a standalone binary with flags, help text, and the runtime agent embedded.
+No tool-builder needed to run the generated tool. Deferred until the config schema is proven.
+
+### Tool-use
+Whether the agent can invoke shell commands is a **config-level opt-in** (not always-on).
+A tool that only reads and writes files should not have shell access. A tool that needs to
+run `go test` to verify its output declares that explicitly. This scopes the blast radius and
+makes capabilities auditable from the config alone.
 
 ### Distribution
-`tool-builder` itself should ship as a single binary (Go, goreleaser). Tools built with it can
-either require `tool-builder` to be installed, or (if we go the generated route) be fully
-standalone.
+`tool-builder` itself ships as a single binary (Go + goreleaser).
+Phase 1 tools require tool-builder to be installed at runtime.
+Phase 2 (generated) tools are self-contained.
 
 ## Key open questions
 
-1. Config format: YAML vs TOML vs custom DSL?
-2. Interpreted first or generated first?
-3. How to handle multi-turn / conversational tools vs. one-shot tools?
-4. How much tool-use (shell exec, file read, etc.) should be exposed to config-defined tools?
-5. How does a config-defined tool get context from its environment (git repo, CI, etc.)?
-6. Authentication: tools built with `tool-builder` will need an `ANTHROPIC_API_KEY` — how is this
-   communicated/documented?
+1. **Interaction model for file changes**: how does the agent present proposed edits before
+   writing? Options:
+   - Accept/reject/refine loop (like prpolish's patch viewer)
+   - Show diff, prompt for confirmation, then write
+   - Write directly with undo support
+2. **Ambient context**: should a running tool automatically pick up a `CLAUDE.md` from the
+   working directory to inject additional project context?
+3. **Multi-command tools**: does phase 1 need subcommands, or is a single-command tool enough
+   to validate the schema?
 
-## Technology decisions (tentative)
+## Technology decisions
 
-- **Language**: Go (consistent with prpolish, ships as single binary, good CLI ecosystem)
-- **CLI framework**: Cobra (standard in Go ecosystem, used by prpolish)
+- **Language**: Go — ships as single binary, strong CLI ecosystem
+- **CLI framework**: Cobra
 - **LLM**: Anthropic Claude via the Anthropic Go SDK
-- **Config parsing**: `viper` or `go-yaml` (TBD)
-- **Release**: goreleaser (can reuse `.goreleaser.yaml` pattern from prpolish)
+- **Config parsing**: `go-yaml` (viper is overkill for a single config file)
+- **Release**: goreleaser
 
-## What to build first (phase 1 goals)
+## Phase 1 goals
 
 1. Repo scaffolding: go module, Cobra root command, Makefile, goreleaser config
-2. Config schema: define and document the config file format
-3. Interpreter: `tool-builder run --config <file> [args]` executes a config-defined tool
-4. Simple example tool: a config that defines a one-shot prompt-based CLI (e.g., a `commit-msg`
-   generator) to validate the whole pipeline end-to-end
+2. Config schema: define and document the YAML format (see `config-schema.md`)
+3. Interpreter: `tool-builder run --config <file> [args]` runs a config-defined agent
+4. Working example: a `gotest` config that generates Go tests for a given file
 
-## What prpolish patterns are worth borrowing
+## What to borrow from prpolish
 
 - `internal/claude/client.go` — streaming Claude client wrapper
-- `internal/agent/agent.go` — the agent abstraction (input → prompt → LLM → structured output)
+- `internal/agent/agent.go` — agent abstraction (input → prompt → LLM → output)
 - `internal/agent/<name>/prompt.md` — prompt-as-sidecar-file pattern
-- `.goreleaser.yaml` — release pipeline config
+- `.goreleaser.yaml` — release pipeline
 
 ## Status
 
-- 2026-05-06: Project started from scratch. Discussing design. No code yet.
+- 2026-05-06: Project started from scratch. Design phase. No code yet.
+  Decided: YAML config, interpreted execution model first, file-edit output model,
+  tool-use as explicit opt-in in config.
