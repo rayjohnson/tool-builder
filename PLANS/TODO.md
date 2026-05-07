@@ -7,10 +7,16 @@ Cross off items as they are completed; add new ones as they come up.
 
 ## High priority — pivot to generated binaries
 
-- [ ] **Move `internal/` to `pkg/`**
-  The runner, config, provider, and systemprompt packages must be publicly
-  importable by generated binaries. Rename all four packages and update every
-  import path. This is a prerequisite for everything else in this section.
+- [ ] **Publish repo to GitHub and tag v0.1.0**
+  Required before `tool-builder build` can work for released binaries.
+  The generated `go.mod` pins `github.com/rayjohnson/tool-builder` at the
+  tag that built it. Dev builds use a `replace` directive to the local path.
+
+- [ ] **Add `pkg/runtime` package**
+  The ONLY package that moves to `pkg/`. Provides `Run(embeds Embeds, args []string) error`.
+  Everything else (`internal/runner`, `internal/config`, etc.) stays in `internal/`
+  and is used by `pkg/runtime` as a transitive dependency — not imported directly
+  by generated binaries.
 
 - [ ] **`pkg/runtime` — entry point for generated binaries**
   New package. Provides `Run(embeds Embeds, args []string) error` where

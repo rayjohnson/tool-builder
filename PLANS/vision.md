@@ -95,17 +95,44 @@ distribute, no config drift, no missing prompt files.
 
 ### tool-builder as a library
 
-To support generated binaries importing the runtime, tool-builder's packages
-must be public. The module is split:
+Generated binaries import exactly ONE package from tool-builder:
+`github.com/rayjohnson/tool-builder/pkg/runtime`
 
-- `pkg/config` — config schema and loader (was `internal/config`)
-- `pkg/provider` — LLM provider interface (was `internal/provider`)
-- `pkg/runner` — agent loop and tools (was `internal/runner`)
-- `pkg/systemprompt` — prompt loader (was `internal/systemprompt`)
-- `pkg/runtime` — **new**: `Run(embeds, args)` entry point for generated binaries
+That package provides `runtime.Run(embeds Embeds, args []string) error`.
+Everything else — config parsing, the agent loop, providers, prompt loading —
+stays in `internal/` and is never directly imported by generated binaries.
+Go's `internal/` restriction only blocks direct imports from outside the module;
+`pkg/runtime` can freely import `internal/runner` etc. as transitive deps.
 
-The `cmd/` packages remain internal to the tool-builder CLI.
-The `pkg/` packages are the public library surface that generated binaries import.
+Package layout:
+- `pkg/runtime` — **only public package**: `Run(embeds, args)` entry point
+- `internal/config` — config schema and loader (unchanged)
+- `internal/runner` — agent loop and file/shell tools (unchanged)
+- `internal/provider` — LLM provider interface and adapters (unchanged)
+- `internal/systemprompt` — prompt assembly (unchanged)
+- `internal/codegen` — **new**: generates `main.go` for built binaries
+- `cmd/` — tool-builder CLI commands (unchanged)
+
+### GitHub and versioning
+
+The module (`github.com/rayjohnson/tool-builder`) must be published and tagged
+for generated binaries to resolve their dependency. Generated `go.mod` pins to
+the tool-builder version that built them.
+
+Dev builds (`version = "dev"`) emit a `replace` directive pointing to the local
+checkout so `go build` works before any tag exists:
+```
+require github.com/rayjohnson/tool-builder v0.0.0
+replace github.com/rayjohnson/tool-builder => /path/to/local/checkout
+```
+
+Released builds (`version = "v0.1.0"`) emit a normal require with no replace:
+```
+require github.com/rayjohnson/tool-builder v0.1.0
+```
+
+This means `tool-builder build` works in both development and production without
+the user needing to think about module resolution.
 
 ### Tool-use
 Whether the agent can invoke shell commands is a **config-level opt-in** (not always-on).
