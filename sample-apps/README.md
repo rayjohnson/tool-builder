@@ -15,44 +15,30 @@ These serve two purposes:
 | [test-builder](test-builder/) | Generate or fix Go tests (table-driven, testify, subtests) |
 | [lint-fixer](lint-fixer/) | Run golangci-lint and fix every issue with minimal targeted changes |
 
-## Two ways to use a sample
+## Using a sample
 
-### Run via tool-builder (quick start, no build step)
-
-Good for trying things out or when you want to edit the prompts and see changes immediately.
-
-```sh
-# From the repo root:
-tool-builder run --config sample-apps/commit-msg/tool.yaml
-tool-builder run --config sample-apps/test-builder/tool.yaml generate ./path/to/file.go
-tool-builder run --config sample-apps/lint-fixer/tool.yaml
-```
-
-### Build a standalone binary (for distribution)
-
-Each sample ships with a `Makefile`. Running `make build` produces a self-contained
-binary that embeds the config and all prompt files — end users only need the binary
-and an `ANTHROPIC_API_KEY`, no tool-builder install required.
+Build a self-contained binary with `make build`, then install it to `~/bin` with `make install`:
 
 ```sh
 cd sample-apps/commit-msg
-make build          # produces ./bin/commit-msg
-make install        # copies to ~/bin/commit-msg
+make install        # builds and copies to ~/bin/commit-msg
 commit-msg          # run from any git repo
 ```
 
 ```sh
 cd sample-apps/test-builder
-make build          # produces ./bin/test-builder
-make install        # copies to ~/bin/test-builder
+make install        # builds and copies to ~/bin/test-builder
 test-builder generate ./internal/foo/bar.go
 ```
+
+The binary embeds the config and all prompt files. End users only need the
+binary and an `ANTHROPIC_API_KEY` — no tool-builder install required.
 
 ## Structure of each sample
 
 ```
 <tool-name>/
-├── Makefile           # build and run targets
+├── Makefile           # build and install targets
 ├── tool.yaml          # The tool-builder config
 ├── README.md          # What the tool does and how to use it
 └── prompts/

@@ -2,49 +2,35 @@
 
 Generates a Git commit message for your staged changes using Claude.
 Reads the diff, studies the project's commit history to match its style,
-and writes a message following best practices.
+and writes a message following best practices. Offers a file picker for
+unstaged changes and will stage files and commit on your behalf.
 
 ## Usage
 
-### Run directly (no build step)
-
 ```sh
-# Stage your changes first, then:
-tool-builder run --config tool.yaml
+cd sample-apps/commit-msg
+make build          # produces ./bin/commit-msg
+make install        # copies to ~/bin/commit-msg
 
-# With a hint about what you're doing:
-tool-builder run --config tool.yaml --hint "fixing the auth regression from last PR"
+# Then run it from any git repo:
+commit-msg
 ```
-
-Run from the root of the Git repository you want to commit in.
-
-### Build a standalone binary
-
-```sh
-make build
-# produces ./bin/commit-msg
-
-# Then run it from any repo — no tool-builder required at runtime:
-./bin/commit-msg
-./bin/commit-msg --hint "fixing the auth regression from last PR"
-```
-
-The binary embeds the config and all prompt files. Distribute it to your team
-and they only need an `ANTHROPIC_API_KEY` — no Go toolchain or tool-builder install.
 
 ## Requirements
 
 - `ANTHROPIC_API_KEY` set in environment
 - `git` in PATH
-- Changes staged with `git add`
-- `tool-builder` in PATH (only needed for `run` or `make build`, not the built binary)
 
 ## What it does
 
-1. Runs `git diff --staged` to read the exact staged changes
-2. Runs `git log --oneline -10` to learn the project's commit style
-3. Reads `CLAUDE.md` or `.github/CONTRIBUTING.md` if present (project context)
-4. Streams a commit message to your terminal
+1. Runs `git status` to see what's staged and unstaged
+2. If there are unstaged files, shows a picker so you can include them
+3. Reads diffs for staged changes and any files you selected
+4. Runs `git log --oneline -10` to learn the project's commit style
+5. Reads `CLAUDE.md` or `.github/CONTRIBUTING.md` if present
+6. Writes a commit message and prints it
+7. Asks if you want to stage any selected unstaged files
+8. Asks if you want to run `git commit`
 
 ## Why sonnet, not opus?
 

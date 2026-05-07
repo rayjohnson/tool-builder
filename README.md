@@ -38,11 +38,13 @@ sudo make install                   # builds and installs to /usr/local/bin
 # or without sudo: INSTALL_DIR=~/bin make install
 ```
 
-### Run a sample tool
+### Build and run a sample tool
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
-tool-builder run --config sample-apps/commit-msg/tool.yaml
+cd sample-apps/commit-msg
+make install        # builds and copies to ~/bin/commit-msg
+commit-msg          # run from any git repo
 ```
 
 ## How it works
@@ -69,42 +71,13 @@ commands:
     description: Generate a commit message for staged changes
 ```
 
-Run it with `tool-builder run`, or build a self-contained binary to distribute:
+Build it into a self-contained binary to distribute:
 
 ```sh
-# Run (requires tool-builder in PATH)
-tool-builder run --config commit-msg/tool.yaml
-
 # Build a standalone binary (embeds config + prompts; no tool-builder needed at runtime)
 tool-builder build --config commit-msg/tool.yaml -o ./bin/commit-msg
 ./bin/commit-msg
 ```
-
-## Sample tools
-
-| Tool | Description |
-|---|---|
-| [commit-msg](sample-apps/commit-msg/) | Generate a Git commit message from staged changes |
-| [test-builder](sample-apps/test-builder/) | Generate or fix Go tests |
-| [lint-fixer](sample-apps/lint-fixer/) | Run golangci-lint and fix issues |
-
-Each sample includes a `Makefile` — `make build` produces a standalone binary ready to distribute.
-
-## Config reference
-
-See [`PLANS/config-schema.md`](PLANS/config-schema.md) for the full schema
-with annotated examples.
-
-Key sections:
-
-| Field | What it does |
-|---|---|
-| `model` | `provider/model-id` — e.g. `anthropic/claude-opus-4-7` |
-| `system_prompts` | Inline text, local files, or URLs — the tool's domain knowledge |
-| `file_access` | Scopes what files the agent may read/write in the working directory |
-| `tool_use` | Shell commands the agent may invoke, with a per-command allowlist |
-| `output_mode` | `confirm` (diff + y/n), `interactive` (refine loop), or `direct` |
-| `commands` | Subcommands with their own prompts, flags, and args |
 
 ## Requirements
 
@@ -112,12 +85,7 @@ Key sections:
 - Any shell tools declared in your config's `tool_use` section
 - Go 1.26+ (only needed for `go install`, building from source, or `tool-builder build`)
 
-## Writing your own tool
+## Documentation
 
-1. Create a directory for your tool
-2. Write a `tool.yaml` config
-3. Write one or more prompt files (markdown works well)
-4. Run with `tool-builder run --config your-tool/tool.yaml`
-5. When ready to share: `tool-builder build --config your-tool/tool.yaml -o ./bin/your-tool`
-
-See the [sample apps](sample-apps/) for complete working examples to copy from.
+See the **[docs/](docs/)** folder for the full manual — config reference, TUI tools,
+and complete annotated examples.
