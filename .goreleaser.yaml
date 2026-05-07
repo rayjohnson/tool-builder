@@ -36,16 +36,3 @@ release:
 
 checksum:
   name_template: "checksums.txt"
-
-brews:
-  - repository:
-      owner: rayjohnson
-      name: homebrew-tap
-      token: "{{ .Env.GITHUB_TOKEN }}"
-    homepage: "https://github.com/rayjohnson/tool-builder"
-    description: "Build AI-powered CLI tools from a YAML config"
-    license: "MIT"
-    install: |
-      bin.install "tool-builder"
-    test: |
-      system "#{bin}/tool-builder", "--help"

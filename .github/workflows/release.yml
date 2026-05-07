@@ -2,14 +2,14 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: GoReleaser
+    name: Tag and Release
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -21,7 +21,25 @@ jobs:
         with:
           go-version: stable
 
+      - name: Create and push tag
+        id: tag
+        run: |
+          VERSION=$(tr -d '[:space:]' < VERSION)
+          TAG="v${VERSION}"
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists — skipping release."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+          else
+            git config user.email "actions@github.com"
+            git config user.name "github-actions"
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Tagged and pushed ${TAG}"
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run GoReleaser
+        if: steps.tag.outputs.skipped != 'true'
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
