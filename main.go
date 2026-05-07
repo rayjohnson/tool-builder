@@ -2,6 +2,8 @@ package main
 
 import "github.com/rayjohnson/tool-builder/cmd"
 
+// God damn this is so cool
+
 // Set by GoReleaser or Makefile via -ldflags at build time.
 var (
 	version   = "dev"
