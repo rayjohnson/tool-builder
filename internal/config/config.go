@@ -128,7 +128,7 @@ func (c *Config) DefaultCommand() *Command {
 
 // Load reads and parses a config file.
 func Load(path string) (*Config, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path comes from the user's --config flag
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}

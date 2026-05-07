@@ -69,7 +69,7 @@ func execReadFile(
 		return errResult(fmt.Sprintf("read denied: %q is outside the configured file_access.read scope", input.Path))
 	}
 
-	data, err := os.ReadFile(absPath) //nolint:gosec
+	data, err := os.ReadFile(absPath)
 	if err != nil {
 		return errResult(fmt.Sprintf("read error: %v", err))
 	}
