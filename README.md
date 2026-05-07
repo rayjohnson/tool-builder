@@ -34,7 +34,8 @@ mv tool-builder /usr/local/bin/
 ```sh
 git clone https://github.com/rayjohnson/tool-builder
 cd tool-builder
-make build
+make install                        # builds and installs to /usr/local/bin
+# or: INSTALL_DIR=~/bin make install
 ```
 
 ### Run a sample tool
