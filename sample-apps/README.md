@@ -11,6 +11,7 @@ These serve two purposes:
 
 | Tool | Description |
 |---|---|
+| [commit-msg](commit-msg/) | Generate a Git commit message from staged changes |
 | [test-builder](test-builder/) | Generate or fix Go tests (table-driven, testify, subtests) |
 | [lint-fixer](lint-fixer/) | Run golangci-lint and fix every issue with minimal targeted changes |
 

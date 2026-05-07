@@ -33,12 +33,9 @@ Cross off items as they are completed; add new ones as they come up.
 
 ## Medium priority — makes the tool usable in practice
 
-- [ ] **Sample app: `commit-msg`** (`sample-apps/commit-msg/`)
-  A simple single-command tool that reads `git diff --staged` and generates
-  a commit message. Good first real test because it has no file writes —
-  just output to stdout. Validates the system prompt + streaming pipeline
-  before we tackle file-write flows. Add to sample-apps alongside the
-  existing test-builder and lint-fixer.
+- [x] **Sample app: `commit-msg`** (`sample-apps/commit-msg/`)
+  Single default command. Runs git diff/log via tool_use, no file writes.
+  Good smoke test for the streaming + shell tool pipeline.
 
 - [ ] **Validate sample apps end-to-end**
   Once the runner exists, run `sample-apps/test-builder` and

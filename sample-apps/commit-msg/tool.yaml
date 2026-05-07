@@ -1,0 +1,39 @@
+name: commit-msg
+version: 0.1.0
+description: Generate a Git commit message for your staged changes
+
+model: anthropic/claude-sonnet-4-6
+model_params:
+  max_tokens: 1024
+  temperature: 0.2
+
+system_prompts:
+  - file: prompts/system.md
+
+# Read CLAUDE.md and any commit conventions doc if present — gives the
+# agent project-specific context without requiring the user to pass it manually.
+file_access:
+  read:
+    - path: CLAUDE.md
+    - path: .github/CONTRIBUTING.md
+    - path: .github/commit-conventions.md
+
+tool_use:
+  enabled: true
+  shell:
+    - command: git
+      args: [diff, log, status, show]
+
+output_mode: confirm
+
+commands:
+  - name: default
+    description: Generate a commit message for currently staged changes
+    prompt: |
+      Look at the staged changes and write a commit message for them.
+      Follow the style conventions from the recent git log.
+    flags:
+      - name: hint
+        short: m
+        description: Optional hint about what the commit is doing or why (added to context)
+        type: string
