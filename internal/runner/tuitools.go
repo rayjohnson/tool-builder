@@ -20,16 +20,26 @@ func buildTUITools(cfg *config.Config, mu *sync.Mutex) ([]anthropic.BetaTool, er
 	}
 	var tools []anthropic.BetaTool
 	for _, name := range cfg.ToolUse.TUI {
+		var (
+			t   anthropic.BetaTool
+			err error
+		)
 		switch name {
 		case "list_select":
-			t, err := buildListSelectTool(mu)
-			if err != nil {
-				return nil, fmt.Errorf("building list_select tool: %w", err)
-			}
-			tools = append(tools, t)
+			t, err = buildListSelectTool(mu)
+		case "confirm":
+			t, err = buildConfirmTool(mu)
+		case "text_input":
+			t, err = buildTextInputTool(mu)
+		case "text_editor":
+			t, err = buildTextEditorTool(mu)
 		default:
 			return nil, fmt.Errorf("unknown TUI tool %q", name)
 		}
+		if err != nil {
+			return nil, fmt.Errorf("building %s tool: %w", name, err)
+		}
+		tools = append(tools, t)
 	}
 	return tools, nil
 }
@@ -63,6 +73,81 @@ func buildListSelectTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
 			}
 			data, _ := json.Marshal(chosen)
 			return okResult(string(data))
+		},
+	)
+}
+
+func buildConfirmTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
+	type input struct {
+		Question   string `json:"question"    jsonschema:"required,description=The yes/no question to ask the user"`
+		DefaultYes bool   `json:"default_yes" jsonschema:"description=If true pressing Enter defaults to yes; default false (Enter = no)"`
+	}
+	return toolrunner.NewBetaToolFromJSONSchema(
+		"confirm",
+		"Ask the user a yes/no question and return their answer. "+
+			"Use this before any irreversible or significant action — staging files, running git commit, sending a message, deleting data. "+
+			"A single keypress is sufficient; no Enter needed. "+
+			"Returns \"yes\" or \"no\".",
+		func(_ context.Context, in input) (anthropic.BetaToolResultBlockParamContentUnion, error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			answer, err := tui.Confirm(in.Question, in.DefaultYes)
+			if err != nil {
+				return errResult(fmt.Sprintf("confirm error: %s", err))
+			}
+			if answer {
+				return okResult("yes")
+			}
+			return okResult("no")
+		},
+	)
+}
+
+func buildTextInputTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
+	type input struct {
+		Prompt      string `json:"prompt"      jsonschema:"required,description=The question or label shown above the text field"`
+		Placeholder string `json:"placeholder" jsonschema:"description=Placeholder text shown in the empty input field"`
+	}
+	return toolrunner.NewBetaToolFromJSONSchema(
+		"text_input",
+		"Prompt the user to type a short text value and return it. "+
+			"Use this when you need free-form input — a name, email address, search query, custom message, etc. "+
+			"Supports cursor movement and editing. "+
+			"Returns the typed text, or an empty string if the user cancelled.",
+		func(_ context.Context, in input) (anthropic.BetaToolResultBlockParamContentUnion, error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			value, err := tui.Input(in.Prompt, in.Placeholder)
+			if err != nil {
+				return errResult(fmt.Sprintf("text_input error: %s", err))
+			}
+			return okResult(value)
+		},
+	)
+}
+
+func buildTextEditorTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
+	type input struct {
+		Content  string `json:"content"  jsonschema:"required,description=The initial content to open in the editor"`
+		Filename string `json:"filename" jsonschema:"description=Filename hint for editor syntax highlighting (e.g. commit-msg.txt or query.sql)"`
+	}
+	return toolrunner.NewBetaToolFromJSONSchema(
+		"text_editor",
+		"Open the user's preferred text editor ($EDITOR) with an initial draft and return the edited content. "+
+			"Use this for longer content the user may want to revise before it is acted on — "+
+			"a commit message body, an email draft, a config snippet, a document section. "+
+			"Returns the saved text after the user closes the editor.",
+		func(_ context.Context, in input) (anthropic.BetaToolResultBlockParamContentUnion, error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			edited, err := tui.Edit(in.Content, in.Filename)
+			if err != nil {
+				return errResult(fmt.Sprintf("text_editor error: %s", err))
+			}
+			return okResult(edited)
 		},
 	)
 }
