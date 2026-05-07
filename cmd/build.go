@@ -41,7 +41,7 @@ func init() {
 }
 
 func runBuild(_ *cobra.Command, _ []string) error {
-	if toolBuilderVersion == "dev" && toolBuilderModDir == "" {
+	if toolBuilderModDir == "" && (toolBuilderVersion == "dev" || toolBuilderVersion == "") {
 		return fmt.Errorf("cannot determine tool-builder module path for dev build\n" +
 			"Run 'make build' instead of 'go build .' to set the module directory via ldflags")
 	}
@@ -77,7 +77,6 @@ func runBuild(_ *cobra.Command, _ []string) error {
 
 	tmpDir, err := codegen.Generate(configBytes, prompts, cfg.Name, toolBuilderVersion, toolBuilderModDir)
 	if err != nil {
-		_ = os.RemoveAll(tmpDir)
 		return fmt.Errorf("generating build directory: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)

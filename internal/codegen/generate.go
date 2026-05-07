@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"text/template"
 )
 
-const (
-	goVersion         = "1.26.2"
-	toolBuilderModule = "github.com/rayjohnson/tool-builder"
-)
+const toolBuilderModule = "github.com/rayjohnson/tool-builder"
 
 var mainTmpl = template.Must(template.New("main").Parse(`package main
 
@@ -90,18 +89,23 @@ func writeFiles(tmpDir string, configBytes []byte, prompts map[string][]byte, to
 	}
 
 	// Write prompt files, preserving relative paths.
+	// Sort keys so generated var names are deterministic across builds.
+	keys := make([]string, 0, len(prompts))
+	for path := range prompts {
+		keys = append(keys, path)
+	}
+	sort.Strings(keys)
+
 	entries := make([]promptEntry, 0, len(prompts))
-	i := 0
-	for path, content := range prompts {
+	for i, path := range keys {
 		dest := filepath.Join(tmpDir, filepath.FromSlash(path))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
 			return fmt.Errorf("creating dir for %q: %w", path, err)
 		}
-		if err := os.WriteFile(dest, content, 0o600); err != nil {
+		if err := os.WriteFile(dest, prompts[path], 0o600); err != nil {
 			return fmt.Errorf("writing %q: %w", path, err)
 		}
 		entries = append(entries, promptEntry{Path: path, VarName: fmt.Sprintf("prompt%d", i)})
-		i++
 	}
 
 	// Generate and write main.go.
@@ -138,6 +142,8 @@ func renderGoMod(toolName, version, localPath string) ([]byte, error) {
 	if localPath != "" {
 		requireVersion = "v0.0.0"
 	}
+	// toolName is used as the module name; it must be a valid module path segment
+	// (lowercase, no spaces or special characters).
 	data := struct {
 		ModuleName        string
 		GoVersion         string
@@ -146,7 +152,7 @@ func renderGoMod(toolName, version, localPath string) ([]byte, error) {
 		LocalPath         string
 	}{
 		ModuleName:        strings.ToLower(toolName),
-		GoVersion:         goVersion,
+		GoVersion:         strings.TrimPrefix(runtime.Version(), "go"),
 		ToolBuilderModule: toolBuilderModule,
 		RequireVersion:    requireVersion,
 		LocalPath:         localPath,
