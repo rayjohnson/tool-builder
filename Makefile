@@ -4,7 +4,7 @@
 COVERAGE_THRESHOLD ?= 20
 VERSION    := $(shell cat VERSION)
 BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
-LDFLAGS    := -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
+LDFLAGS    := -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME) -X main.moduleDir=$(shell pwd)
 
 GO_FILES   := $(shell find . -name '*.go')
 SOURCES    := $(GO_FILES) go.mod go.sum VERSION

@@ -7,6 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	toolBuilderVersion string
+	toolBuilderModDir  string
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "tool-builder",
 	Short: "Build AI-powered CLI tools from a YAML config",
@@ -17,10 +22,13 @@ the files it can read and write, optional shell tools, and how it interacts with
 
 Examples:
   tool-builder run --config gotest.yaml ./pkg/foo.go
-  tool-builder run --config commit-msg.yaml`,
+  tool-builder run --config commit-msg.yaml
+  tool-builder build --config commit-msg.yaml`,
 }
 
-func Execute(version, buildTime string) {
+func Execute(version, buildTime, moduleDir string) {
+	toolBuilderVersion = version
+	toolBuilderModDir = moduleDir
 	rootCmd.Version = fmt.Sprintf("%s (built %s)", version, buildTime)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -30,4 +38,5 @@ func Execute(version, buildTime string) {
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(buildCmd)
 }
