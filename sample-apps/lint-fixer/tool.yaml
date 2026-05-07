@@ -1,0 +1,47 @@
+name: lint-fixer
+version: 0.1.0
+description: Run golangci-lint and fix issues with minimal targeted changes
+
+model: anthropic/claude-opus-4-7
+model_params:
+  max_tokens: 16000
+  temperature: 0.1
+
+system_prompts:
+  - file: prompts/system.md
+
+file_access:
+  read:
+    - glob: "**/*.go"
+    - path: .golangci.yml
+    - path: .golangci.yaml
+    - path: .golangci.toml
+  write:
+    - glob: "**/*.go"
+
+tool_use:
+  enabled: true
+  shell:
+    - command: golangci-lint
+      args: [run]
+    - command: go
+      args: [build, vet]
+
+output_mode: interactive
+
+commands:
+  - name: default
+    description: Run golangci-lint on the current directory and fix all issues
+    prompt: |
+      Run golangci-lint on the project. Fix every issue found, one file at a time,
+      following the system prompt guidelines. After all fixes are proposed, run
+      golangci-lint once more to confirm the project is clean.
+    flags:
+      - name: path
+        short: p
+        description: Package pattern to lint (default ./...)
+        type: string
+        default: "./..."
+      - name: only
+        description: Fix only issues from a specific linter (e.g. misspell, gosec)
+        type: string

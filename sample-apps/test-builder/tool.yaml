@@ -1,0 +1,64 @@
+name: test-builder
+version: 0.1.0
+description: Generate or fix Go tests following best practices
+
+model: anthropic/claude-opus-4-7
+model_params:
+  max_tokens: 16000
+  temperature: 0.1
+
+system_prompts:
+  - file: prompts/system.md
+
+file_access:
+  read:
+    - glob: "**/*.go"
+  write:
+    - glob: "**/*_test.go"
+
+tool_use:
+  enabled: true
+  shell:
+    - command: go
+      args: [test, build, vet]
+
+output_mode: confirm
+
+commands:
+  - name: generate
+    description: Generate tests for a Go source file
+    prompt: |
+      The user wants you to generate tests for the Go source file provided.
+      Read the file, then follow the clarifying-questions guidance below before proceeding.
+    args:
+      - name: target
+        description: Go source file to generate tests for (e.g. ./internal/foo/bar.go)
+        required: true
+    flags:
+      - name: output
+        short: o
+        description: Output file path (default: replaces .go with _test.go)
+        type: string
+      - name: run
+        short: r
+        description: Run go test after generating and show results
+        type: bool
+        default: true
+
+  - name: fix
+    description: Fix failing or broken tests in an existing test file
+    prompt: |
+      The user wants you to fix the test file provided.
+      Read both the test file and the source file it tests (infer the source file path
+      by stripping _test.go and checking if the file exists).
+      Understand what is failing before proposing any changes.
+    args:
+      - name: target
+        description: Go test file to fix (e.g. ./internal/foo/bar_test.go)
+        required: true
+    flags:
+      - name: run
+        short: r
+        description: Run go test before and after fixing to show the improvement
+        type: bool
+        default: true

@@ -41,16 +41,17 @@ Cross off items as they are completed; add new ones as they come up.
 
 ## Medium priority — makes the tool usable in practice
 
-- [ ] **Example config: `commit-msg`**
+- [ ] **Sample app: `commit-msg`** (`sample-apps/commit-msg/`)
   A simple single-command tool that reads `git diff --staged` and generates
   a commit message. Good first real test because it has no file writes —
   just output to stdout. Validates the system prompt + streaming pipeline
-  before we tackle file-write flows.
+  before we tackle file-write flows. Add to sample-apps alongside the
+  existing test-builder and lint-fixer.
 
-- [ ] **Example config: `gotest`**
-  The motivating example from the design. Reads a Go source file and
-  generates a `_test.go` file. Validates file_access read/write, the
-  confirm output mode, and a multi-turn conversation.
+- [ ] **Validate sample apps end-to-end**
+  Once the runner exists, run `sample-apps/test-builder` and
+  `sample-apps/lint-fixer` against real code as integration tests.
+  Document any config schema gaps discovered during that exercise.
 
 - [ ] **`output_mode: interactive`** — accept/reject/refine loop
   After `confirm` is working, add the richer interaction mode where the user
