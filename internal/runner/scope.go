@@ -49,6 +49,10 @@ func matchesPatterns(path string, patterns []config.FilePattern, workDir string)
 			}
 
 		case p.Glob != "":
+			// Reject paths outside workDir: their relPath starts with "..".
+			if strings.HasPrefix(relPath, "..") {
+				continue
+			}
 			matched, err := doublestar.Match(filepath.ToSlash(p.Glob), filepath.ToSlash(relPath))
 			if err == nil && matched {
 				return true
