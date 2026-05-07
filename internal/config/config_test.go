@@ -222,6 +222,96 @@ env:
 	require.Equal(t, "fallback", resolved["MY_OPTIONAL_VAR"])
 }
 
+func TestLoad_InvalidTUITool(t *testing.T) {
+	yaml := `
+name: mytool
+version: 1.0.0
+model: anthropic/m
+system_prompts:
+  - text: hi
+commands:
+  - name: default
+    description: do it
+tool_use:
+  enabled: true
+  tui: [bogus]
+`
+	_, err := loadFromStringErr(t, yaml)
+	require.ErrorContains(t, err, "unknown tui tool")
+}
+
+func TestLoad_InvalidWebTool(t *testing.T) {
+	yaml := `
+name: mytool
+version: 1.0.0
+model: anthropic/m
+system_prompts:
+  - text: hi
+commands:
+  - name: default
+    description: do it
+tool_use:
+  enabled: true
+  web: [bogus]
+`
+	_, err := loadFromStringErr(t, yaml)
+	require.ErrorContains(t, err, "bogus")
+}
+
+func TestLoad_ValidWebTools(t *testing.T) {
+	yaml := `
+name: mytool
+version: 1.0.0
+model: anthropic/m
+system_prompts:
+  - text: hi
+commands:
+  - name: default
+    description: do it
+tool_use:
+  enabled: true
+  web: [fetch]
+`
+	cfg := loadFromString(t, yaml)
+	require.Equal(t, []string{"fetch"}, cfg.ToolUse.Web)
+}
+
+func TestLoad_Context(t *testing.T) {
+	yaml := `
+name: mytool
+version: 1.0.0
+model: anthropic/m
+system_prompts:
+  - text: hi
+commands:
+  - name: default
+    description: do it
+context:
+  - path: CLAUDE.md
+  - url: https://example.com/standards.md
+`
+	cfg := loadFromString(t, yaml)
+	require.Len(t, cfg.Context, 2)
+	require.Equal(t, "CLAUDE.md", cfg.Context[0].Path)
+	require.Equal(t, "https://example.com/standards.md", cfg.Context[1].URL)
+}
+
+func TestLoad_SessionOnCommand(t *testing.T) {
+	yaml := `
+name: mytool
+version: 1.0.0
+model: anthropic/m
+system_prompts:
+  - text: hi
+commands:
+  - name: default
+    description: do it
+    session: true
+`
+	cfg := loadFromString(t, yaml)
+	require.True(t, cfg.Commands[0].Session)
+}
+
 // loadFromString writes yaml to a temp file and loads it, requiring success.
 func loadFromString(t *testing.T, yaml string) *config.Config {
 	t.Helper()

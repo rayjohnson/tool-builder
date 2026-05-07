@@ -17,6 +17,11 @@ the user: `list_select`, `confirm`, `text_input`, and `text_editor`. Covers inpu
 schemas, return values, keyboard controls, and how to instruct the agent to use them
 in system prompts.
 
+Built-in tools also include `edit_file` (always registered alongside `write_file` when
+write access is configured — makes targeted string replacements in existing files) and
+web tools `web_fetch` and `web_search` (opt-in via `tool_use.web`; `web_search` requires
+a `BRAVE_API_KEY` environment variable).
+
 ### [Examples](examples.md)
 Complete annotated `tool.yaml` configs for all three sample apps — commit-msg,
 test-builder, and lint-fixer — with design rationale for each choice.
