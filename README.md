@@ -79,37 +79,13 @@ tool-builder build --config commit-msg/tool.yaml -o ./bin/commit-msg
 ./bin/commit-msg
 ```
 
-## Sample tools
-
-| Tool | Description |
-|---|---|
-| [commit-msg](sample-apps/commit-msg/) | Generate a Git commit message from staged changes |
-| [test-builder](sample-apps/test-builder/) | Generate or fix Go tests |
-| [lint-fixer](sample-apps/lint-fixer/) | Run golangci-lint and fix issues |
-
-Each sample includes a `Makefile` — `make build` produces a standalone binary ready to distribute.
-
-## Documentation
-
-| Doc | Description |
-|---|---|
-| [docs/overview.md](docs/overview.md) | Core concepts: the build model, agent loop, key config sections |
-| [docs/config-reference.md](docs/config-reference.md) | Every config field with types, defaults, and validation rules |
-| [docs/tui-tools.md](docs/tui-tools.md) | Interactive TUI tools the agent can call (`list_select`, `confirm`, etc.) |
-| [docs/examples.md](docs/examples.md) | Complete annotated configs for all three sample apps |
-
 ## Requirements
 
 - `ANTHROPIC_API_KEY` environment variable
 - Any shell tools declared in your config's `tool_use` section
 - Go 1.26+ (only needed for `go install`, building from source, or `tool-builder build`)
 
-## Writing your own tool
+## Documentation
 
-1. Create a directory for your tool
-2. Write a `tool.yaml` config
-3. Write one or more prompt files (markdown works well)
-4. Build with `tool-builder build --config your-tool/tool.yaml -o ./bin/your-tool`
-5. Run `./bin/your-tool` — iterate on prompts and rebuild as needed
-
-See the [sample apps](sample-apps/) for complete working examples to copy from.
+See the **[docs/](docs/)** folder for the full manual — config reference, TUI tools,
+and complete annotated examples.
