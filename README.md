@@ -89,21 +89,14 @@ tool-builder build --config commit-msg/tool.yaml -o ./bin/commit-msg
 
 Each sample includes a `Makefile` — `make build` produces a standalone binary ready to distribute.
 
-## Config reference
+## Documentation
 
-See [`PLANS/config-schema.md`](PLANS/config-schema.md) for the full schema
-with annotated examples.
-
-Key sections:
-
-| Field | What it does |
+| Doc | Description |
 |---|---|
-| `model` | `provider/model-id` — e.g. `anthropic/claude-opus-4-7` |
-| `system_prompts` | Inline text, local files, or URLs — the tool's domain knowledge |
-| `file_access` | Scopes what files the agent may read/write in the working directory |
-| `tool_use` | Shell commands the agent may invoke, with a per-command allowlist |
-| `output_mode` | `confirm` (diff + y/n), `interactive` (refine loop), or `direct` |
-| `commands` | Subcommands with their own prompts, flags, and args |
+| [docs/overview.md](docs/overview.md) | Core concepts: the build model, agent loop, key config sections |
+| [docs/config-reference.md](docs/config-reference.md) | Every config field with types, defaults, and validation rules |
+| [docs/tui-tools.md](docs/tui-tools.md) | Interactive TUI tools the agent can call (`list_select`, `confirm`, etc.) |
+| [docs/examples.md](docs/examples.md) | Complete annotated configs for all three sample apps |
 
 ## Requirements
 

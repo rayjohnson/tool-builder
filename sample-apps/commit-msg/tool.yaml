@@ -14,9 +14,9 @@ system_prompts:
 # agent project-specific context without requiring the user to pass it manually.
 file_access:
   read:
-    - path: CLAUDE.md
-    - path: .github/CONTRIBUTING.md
-    - path: .github/commit-conventions.md
+    - glob: "CLAUDE.md"
+    - glob: ".github/CONTRIBUTING.md"
+    - glob: ".github/commit-conventions.md"
 
 tool_use:
   enabled: true
