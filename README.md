@@ -38,11 +38,13 @@ sudo make install                   # builds and installs to /usr/local/bin
 # or without sudo: INSTALL_DIR=~/bin make install
 ```
 
-### Run a sample tool
+### Build and run a sample tool
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
-tool-builder run --config sample-apps/commit-msg/tool.yaml
+cd sample-apps/commit-msg
+make install        # builds and copies to ~/bin/commit-msg
+commit-msg          # run from any git repo
 ```
 
 ## How it works
@@ -69,12 +71,9 @@ commands:
     description: Generate a commit message for staged changes
 ```
 
-Run it with `tool-builder run`, or build a self-contained binary to distribute:
+Build it into a self-contained binary to distribute:
 
 ```sh
-# Run (requires tool-builder in PATH)
-tool-builder run --config commit-msg/tool.yaml
-
 # Build a standalone binary (embeds config + prompts; no tool-builder needed at runtime)
 tool-builder build --config commit-msg/tool.yaml -o ./bin/commit-msg
 ./bin/commit-msg
@@ -117,7 +116,7 @@ Key sections:
 1. Create a directory for your tool
 2. Write a `tool.yaml` config
 3. Write one or more prompt files (markdown works well)
-4. Run with `tool-builder run --config your-tool/tool.yaml`
-5. When ready to share: `tool-builder build --config your-tool/tool.yaml -o ./bin/your-tool`
+4. Build with `tool-builder build --config your-tool/tool.yaml -o ./bin/your-tool`
+5. Run `./bin/your-tool` — iterate on prompts and rebuild as needed
 
 See the [sample apps](sample-apps/) for complete working examples to copy from.

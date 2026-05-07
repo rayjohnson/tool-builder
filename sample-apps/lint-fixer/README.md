@@ -5,43 +5,25 @@ targeted changes. Reviews each proposed file edit before writing.
 
 ## Usage
 
-### Run directly (no build step)
-
 ```sh
-# Fix all lint issues in the current directory
-tool-builder run --config tool.yaml
+cd sample-apps/lint-fixer
+make build          # produces ./bin/lint-fixer
+make install        # copies to ~/bin/lint-fixer
 
-# Lint a specific package subtree
-tool-builder run --config tool.yaml --path ./internal/...
-
-# Fix only issues from one linter
-tool-builder run --config tool.yaml --only misspell
+# Then run it from any Go project:
+lint-fixer
+lint-fixer --path ./internal/...
+lint-fixer --only misspell
 ```
 
 Run from the root of the Go project. A `.golangci.yml` in that directory will
 be read and respected — the tool reads it to understand which linters are active.
-
-### Build a standalone binary
-
-```sh
-make build
-# produces ./bin/lint-fixer
-
-# Then run it from any Go project — no tool-builder required at runtime:
-./bin/lint-fixer
-./bin/lint-fixer --path ./internal/...
-./bin/lint-fixer --only misspell
-```
-
-The binary embeds the config and all prompt files. Distribute it to your team
-and they only need an `ANTHROPIC_API_KEY` — no Go toolchain or tool-builder install.
 
 ## Requirements
 
 - `ANTHROPIC_API_KEY` set in environment
 - `golangci-lint` in PATH
 - `go` in PATH
-- `tool-builder` in PATH (only needed for `run` or `make build`, not the built binary)
 
 ## What it does
 
