@@ -1,0 +1,39 @@
+name: rtfm
+version: 0.1.0
+description: Answer questions about any library using live, up-to-date documentation
+
+model: anthropic/claude-sonnet-4-6
+model_params:
+  max_tokens: 8096
+  temperature: 0.1
+
+system_prompts:
+  - file: prompts/system.md
+
+tool_use:
+  enabled: true
+  mcp:
+    - name: context7
+      command: npx
+      args: ["-y", "@upstash/context7-mcp@latest"]
+      tools:
+        - resolve-library-id
+        - get-library-docs
+
+output_mode: terse
+
+commands:
+  - name: default
+    description: Answer a documentation question about a library
+    prompt: |
+      Answer the user's query using Context7 docs.
+    args:
+      - name: query
+        description: "Library name and question, e.g. 'cobra add persistent flags' or 'react useEffect cleanup'"
+        required: true
+    flags:
+      - name: tokens
+        short: t
+        description: Max tokens of library docs to fetch (default 5000)
+        type: int
+        default: 5000

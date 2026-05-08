@@ -3,10 +3,13 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+var mcpNameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 type Config struct {
 	Name          string          `yaml:"name"`
@@ -89,11 +92,23 @@ type ToolUse struct {
 	Shell   []ShellTool `yaml:"shell"`
 	TUI     []string    `yaml:"tui"`
 	Web     []string    `yaml:"web"`
+	MCP     []MCPServer `yaml:"mcp"`
 }
 
 type ShellTool struct {
 	Command string   `yaml:"command"`
 	Args    []string `yaml:"args"`
+}
+
+// MCPServer declares one MCP server to connect to at runtime.
+// Exactly one of Command or URL must be set.
+type MCPServer struct {
+	Name    string   `yaml:"name"`    // short name used as tool name prefix (e.g. "filesystem")
+	Command string   `yaml:"command"` // subprocess executable (stdio transport)
+	Args    []string `yaml:"args"`    // subprocess arguments
+	Env     []string `yaml:"env"`     // extra KEY=VALUE env vars for the subprocess
+	URL     string   `yaml:"url"`     // base URL for HTTP streamable transport
+	Tools   []string `yaml:"tools"`   // optional allowlist of MCP tool names (default: all)
 }
 
 // Provider returns the provider prefix from a "provider/model-id" model string.
@@ -192,6 +207,28 @@ func (c *Config) validate() error {
 		for _, name := range c.ToolUse.Web {
 			if name != "fetch" {
 				return fmt.Errorf("tool_use.web entry %q is not valid (only \"fetch\" is supported)", name)
+			}
+		}
+		seen := make(map[string]bool, len(c.ToolUse.MCP))
+		for _, srv := range c.ToolUse.MCP {
+			if srv.Name == "" {
+				return fmt.Errorf("each tool_use.mcp entry must have a name")
+			}
+			if !mcpNameRe.MatchString(srv.Name) {
+				return fmt.Errorf("tool_use.mcp name %q must contain only letters, digits, underscores, or hyphens", srv.Name)
+			}
+			if seen[srv.Name] {
+				return fmt.Errorf("duplicate tool_use.mcp name %q", srv.Name)
+			}
+			seen[srv.Name] = true
+			if srv.Command == "" && srv.URL == "" {
+				return fmt.Errorf("tool_use.mcp %q: either command or url is required", srv.Name)
+			}
+			if srv.Command != "" && srv.URL != "" {
+				return fmt.Errorf("tool_use.mcp %q: set either command or url, not both", srv.Name)
+			}
+			if srv.URL != "" && len(srv.Env) > 0 {
+				return fmt.Errorf("tool_use.mcp %q: env is only valid with command (not url)", srv.Name)
 			}
 		}
 	}

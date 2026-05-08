@@ -79,7 +79,12 @@ func (r *Runner) Run(ctx context.Context, cmd *config.Command, argFiles []string
 	if err != nil {
 		return err
 	}
-	tools := append(fileTools, append(shellTools, append(tuiTools, webTools...)...)...)
+	mcpTools, mcpCleanup, err := buildMCPTools(ctx, r.cfg)
+	if err != nil {
+		return err
+	}
+	defer mcpCleanup()
+	tools := append(fileTools, append(shellTools, append(tuiTools, append(webTools, mcpTools...)...)...)...)
 
 	// 4. Create Anthropic client.
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
