@@ -33,8 +33,16 @@ Call `run_golangci_lint` with args:
 
 If zero issues remain: output `No issues found.` and stop.
 
-Otherwise, call the `confirm` tool with only the one-line summary — no per-file list:
+Compare the --fix run output with the remaining issues to determine what was auto-fixed.
+Call `confirm` with a one-line summary — no per-file list:
 
+If --fix resolved some issues:
+```
+question: "Auto-fixed N issues (errcheck:38). Remaining: 3 issues in 3 files (unused:3)\nFix remaining issues?"
+default_yes: true
+```
+
+If nothing was auto-fixed:
 ```
 question: "60 issues in 26 files (errcheck:40, staticcheck:16, unused:3)\nFix these issues?"
 default_yes: true

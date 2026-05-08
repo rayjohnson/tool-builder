@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
 
 	anthropic "github.com/anthropics/anthropic-sdk-go"
@@ -14,7 +15,8 @@ import (
 
 // buildTUITools registers interactive TUI tools declared in tool_use.tui.
 // mu serializes TUI interactions with other terminal output.
-func buildTUITools(cfg *config.Config, mu *sync.Mutex) ([]anthropic.BetaTool, error) {
+// out is used by show_diff to print a progress line after each decision.
+func buildTUITools(cfg *config.Config, mu *sync.Mutex, out io.Writer) ([]anthropic.BetaTool, error) {
 	if cfg.ToolUse == nil {
 		return nil, nil
 	}
@@ -34,7 +36,7 @@ func buildTUITools(cfg *config.Config, mu *sync.Mutex) ([]anthropic.BetaTool, er
 		case "text_editor":
 			t, err = buildTextEditorTool(mu)
 		case "show_diff":
-			t, err = buildShowDiffTool(mu)
+			t, err = buildShowDiffTool(mu, out)
 		default:
 			return nil, fmt.Errorf("unknown TUI tool %q", name)
 		}
@@ -130,7 +132,7 @@ func buildTextInputTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
 	)
 }
 
-func buildShowDiffTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
+func buildShowDiffTool(mu *sync.Mutex, out io.Writer) (anthropic.BetaTool, error) {
 	type input struct {
 		OldContent string `json:"old_content" jsonschema:"required,description=Original file content"`
 		NewContent string `json:"new_content" jsonschema:"required,description=Proposed new content"`
@@ -149,6 +151,20 @@ func buildShowDiffTool(mu *sync.Mutex) (anthropic.BetaTool, error) {
 			result, err := tui.ShowDiff(in.Filename, in.OldContent, in.NewContent)
 			if err != nil {
 				return errResult(fmt.Sprintf("show_diff error: %s", err))
+			}
+			// Print a progress line so the terminal isn't completely silent between diffs.
+			// Skip for feedback results — the user will see another diff for the same file.
+			name := in.Filename
+			if name == "" {
+				name = "file"
+			}
+			switch result {
+			case "accept":
+				fmt.Fprintf(out, "  %s → accepted\n", name)
+			case "accept_all":
+				fmt.Fprintf(out, "  %s → accepted (applying all remaining)\n", name)
+			case "reject":
+				fmt.Fprintf(out, "  %s → rejected\n", name)
 			}
 			return okResult(result)
 		},

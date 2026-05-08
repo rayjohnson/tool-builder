@@ -71,7 +71,7 @@ func (r *Runner) Run(ctx context.Context, cmd *config.Command, argFiles []string
 	if err != nil {
 		return err
 	}
-	tuiTools, err := buildTUITools(r.cfg, &mu)
+	tuiTools, err := buildTUITools(r.cfg, &mu, r.out)
 	if err != nil {
 		return err
 	}
