@@ -27,6 +27,7 @@ tool_use:
     - confirm
     - text_input
     - text_editor
+    - show_diff
 ```
 
 Only listed tools are available to the agent. Omit tools the agent does not need.
@@ -192,6 +193,7 @@ unified diff format with green additions, red removals, and gray context lines.
 ### Return value
 
 - `"accept"` — user approved the change; proceed with writing
+- `"accept_all"` — user approved this change and wants all remaining diffs auto-accepted without prompting
 - `"reject"` — user rejected the change; skip it
 - `"<feedback text>"` — user typed feedback; revise your proposal and call `show_diff` again
 
@@ -202,10 +204,12 @@ If old_content and new_content are identical, returns `"accept"` immediately.
 | Key | Action |
 |---|---|
 | y / Enter | Accept |
+| a | Accept all remaining (returns `"accept_all"`) |
 | n / q / Esc | Reject |
 | f | Open feedback input |
 | ↑ / k, ↓ / j | Scroll |
 | PgUp / PgDn | Scroll page |
+| Ctrl+C | Reject and exit |
 
 ### Example system prompt usage
 

@@ -172,14 +172,17 @@ test-builder fix ./internal/mypackage/foo_test.go
 ## lint-fixer
 
 Runs `golangci-lint` and fixes every issue with minimal targeted changes. Shows each
-proposed fix before writing using interactive mode.
+proposed fix as a scrollable diff before writing.
 
 **Key design choices:**
 - Uses `claude-opus-4-7` (lint fixes require understanding subtle code semantics)
 - Single `default` command
 - Read all `.go` files plus lint config files; write any `.go` file
-- `output_mode: interactive` — user can push back on any proposed fix before accepting
-- Runs lint again at the end to confirm the project is clean
+- `output_mode: terse` — suppresses agent narration between tool calls; only the final
+  summary line is printed (all user interaction goes through TUI tools)
+- `show_diff` + `confirm` TUI tools — user reviews each proposed fix via a scrollable
+  colored diff, with an "accept all" escape hatch to approve remaining diffs at once
+- Runs `golangci-lint --fix` first to auto-apply safe fixes, then handles the rest manually
 
 ```yaml
 name: lint-fixer
@@ -197,35 +200,40 @@ system_prompts:
 file_access:
   read:
     - glob: "**/*.go"
-    - glob: ".golangci.yml"       # read lint config to understand active linters
-    - glob: ".golangci.yaml"
-    - glob: ".golangci.toml"
+    - path: .golangci.yml        # read lint config to understand active linters
+    - path: .golangci.yaml
+    - path: .golangci.toml
   write:
     - glob: "**/*.go"
 
 tool_use:
   enabled: true
+  tui:
+    - show_diff                  # scrollable colored diff viewer with accept/reject/feedback
+    - confirm                    # yes/no prompt before starting fixes
   shell:
     - command: golangci-lint
       args: [run]
     - command: go
       args: [build, vet]
 
-output_mode: interactive        # user reviews and can push back on each fix
+output_mode: terse              # suppress agent narration; all output is through TUI tools
 
 commands:
   - name: default
     description: Run golangci-lint on the current directory and fix all issues
     prompt: |
-      Run golangci-lint on the project. Fix every issue found, one file at a time.
-      After all fixes are proposed, run golangci-lint once more to confirm the project
-      is clean.
+      Begin. Call run_golangci_lint now.
     flags:
       - name: path
         short: p
         description: Package pattern to lint (default ./...)
         type: string
         default: "./..."
+      - name: config
+        short: c
+        description: Path to golangci-lint config file (default auto-detected)
+        type: string
       - name: only
         description: Fix only issues from a specific linter (e.g. misspell, gosec)
         type: string
@@ -234,16 +242,18 @@ commands:
 **Usage:**
 
 ```sh
-lint-fixer                         # lint and fix ./...
-lint-fixer --path ./internal/...   # scope to a subtree
-lint-fixer --only misspell         # fix only misspell issues
+lint-fixer                              # lint and fix ./...
+lint-fixer --path ./internal/...        # scope to a subtree
+lint-fixer --only misspell              # fix only misspell issues
+lint-fixer --config .golangci-strict.yml  # use a specific lint config
 ```
 
-**Interactive mode:** after each proposed file change you can:
-- Press `y` to accept and write
-- Press `n` to skip
-- Type feedback (e.g. "don't add the nolint comment, fix the root cause") to refine the
-  proposal before accepting
+**Diff review:** after each proposed file change you can:
+- Press `y` to accept and write this file
+- Press `a` to accept this file and all remaining diffs without further prompting
+- Press `n` to skip this file
+- Press `f` and type feedback (e.g. "fix the root cause, don't add nolint") to refine
+  the proposal; the agent will revise and show the diff again
 
 ---
 
