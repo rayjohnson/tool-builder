@@ -251,6 +251,56 @@ A list of TUI tool names to enable. Each name must be one of the five built-in t
 
 See [tui-tools.md](tui-tools.md) for full input schemas and usage guidance.
 
+### mcp entries
+
+A list of MCP (Model Context Protocol) servers to connect to at runtime. Each server's
+tools are registered alongside the built-in tools and made available to the agent.
+
+```yaml
+tool_use:
+  enabled: true
+  mcp:
+    - name: filesystem
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    - name: context7
+      command: npx
+      args: ["-y", "@upstash/context7-mcp@latest"]
+      tools:
+        - resolve-library-id
+        - get-library-docs
+    - name: my-server
+      url: http://localhost:8080/mcp
+```
+
+Each entry requires either `command` (stdio subprocess) or `url` (HTTP streamable transport),
+not both.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Short identifier used to prefix tool names (e.g. `filesystem` → `filesystem__read_file`) |
+| `command` | string | one of | Executable to launch as a stdio MCP subprocess |
+| `args` | list | no | Arguments passed to the subprocess |
+| `env` | list | no | Additional `KEY=VALUE` env vars for the subprocess |
+| `url` | string | one of | Base URL of an HTTP streamable MCP server |
+| `tools` | list | no | Allowlist of MCP tool names to register (default: all tools the server exposes) |
+
+**Tool naming:** every MCP tool is registered with a `servername__toolname` prefix so the agent
+always knows which server a tool belongs to and collisions between servers are impossible.
+For example, a server named `filesystem` that exposes `read_file` is registered as
+`filesystem__read_file`.
+
+**Subprocess servers:** the command must be available in `PATH` when the tool is run. The
+subprocess is started when the agent loop begins and stopped when it exits. npx-based servers
+(e.g. `npx -y @upstash/context7-mcp@latest`) work as long as Node.js is installed.
+
+**HTTP servers:** the server must be running and reachable before the tool is invoked. Uses
+the MCP Streamable HTTP transport.
+
+See [tui-tools.md](tui-tools.md) for full input schemas and usage guidance.
+
+---
+
 ### web entries
 
 A list of web tool names to enable. Currently one built-in web tool is supported:
@@ -366,4 +416,5 @@ Required fields: `name`, `model`, at least one `system_prompts` entry, at least 
 - Each command must have a `name`
 - Each `tool_use.tui` entry must be one of the five known tool names (`list_select`, `confirm`, `text_input`, `text_editor`, `show_diff`)
 - Each `tool_use.web` entry must be `fetch`
+- Each `tool_use.mcp` entry must have a `name` (alphanumeric/underscore/hyphen, unique), and exactly one of `command` or `url`
 - TUI tool `enabled: true` must be set for any shell or TUI tools to be registered

@@ -7,13 +7,11 @@ Cross off items as they are completed; add new ones as they come up.
 
 ## In progress / next up
 
-- [ ] **MCP server support**
-  Allow tool-builder tools to connect to MCP (Model Context Protocol) servers
-  and expose their tools to the agent. The `tool.yaml` would declare MCP servers
-  to connect to (by command or URL); tool-builder discovers their tool manifests
-  at runtime and wires them alongside shell/file/TUI tools. This gives generated
-  tools access to the whole MCP ecosystem (filesystem, git, databases, etc.)
-  without hand-coding each integration.
+- [x] **MCP server support**
+  `tool_use.mcp` in tool.yaml declares MCP servers (stdio subprocess or HTTP).
+  At runtime, tool-builder connects, fetches tool manifests, and registers them
+  alongside built-in tools with `servername__toolname` prefixing. Both stdio
+  and HTTP Streamable transports supported via `mark3labs/mcp-go`.
 
 - [ ] **Additional TUI tools inspired by gum/charmbracelet**
   Gum (https://github.com/charmbracelet/gum) is a CLI, not a library, but the
@@ -65,14 +63,10 @@ Cross off items as they are completed; add new ones as they come up.
 
 ## Lower priority
 
-- [ ] **Sample app: `rtfm`** — souped-up man page powered by Context7 MCP
-  A `man`-like tool that answers "how do I use X?" questions with live,
-  accurate documentation via the Context7 MCP server
-  (https://github.com/upstash/context7). Unlike static man pages, Context7
-  serves up-to-date library docs for any package. The tool takes a natural
-  language query, resolves the relevant library via Context7, fetches the docs,
-  and returns a concise, example-driven answer. Depends on MCP support landing
-  first.
+- [x] **Sample app: `rtfm`** — souped-up man page powered by Context7 MCP
+  Answers "how do I use X?" questions with live, accurate library docs via
+  Context7. Uses `context7__resolve-library-id` + `context7__get-library-docs`.
+  Requires Node.js (npx). Usage: `rtfm "cobra add persistent flags"`
 
 - [ ] **`tool-builder init`** — interactive config scaffolding wizard
 - [ ] **URL prompt caching** — `cache: runtime` opt-in for tools that want
