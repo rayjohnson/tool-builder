@@ -239,7 +239,7 @@ are not restricted — `git diff --staged HEAD~1` is permitted if `diff` is in t
 
 ### tui entries
 
-A list of TUI tool names to enable. Each name must be one of the four built-in tools:
+A list of TUI tool names to enable. Each name must be one of the five built-in tools:
 
 | Name | Description |
 |---|---|
@@ -247,29 +247,24 @@ A list of TUI tool names to enable. Each name must be one of the four built-in t
 | `confirm` | Single-keypress yes/no prompt; returns `"yes"` or `"no"` |
 | `text_input` | Full-cursor text field; returns typed text |
 | `text_editor` | Opens `$EDITOR` with a draft; returns edited content |
+| `show_diff` | Scrollable colored unified diff viewer; returns `"accept"`, `"accept_all"`, `"reject"`, or feedback text |
 
 See [tui-tools.md](tui-tools.md) for full input schemas and usage guidance.
 
 ### web entries
 
-A list of web tool names to enable. Each name must be one of the two built-in web tools:
+A list of web tool names to enable. Currently one built-in web tool is supported:
 
 | Name | Description | Requirement |
 |---|---|---|
 | `fetch` | Fetches a URL and returns its content as plain text | None |
-| `search` | Searches the web and returns ranked results | `BRAVE_API_KEY` env var must be set |
 
 ```yaml
 tool_use:
   enabled: true
   web:
     - fetch
-    - search
 ```
-
-`web_search` requires a [Brave Search API](https://brave.com/search/api/) key set in the
-`BRAVE_API_KEY` environment variable. If the key is not set when the agent calls
-`web_search`, the tool returns an error message to the agent rather than failing the run.
 
 ---
 
@@ -282,12 +277,14 @@ Controls how the agent presents proposed file writes to the user.
 | `confirm` | Show a unified diff and ask yes/no before writing (default) |
 | `interactive` | Show a diff; user can accept, reject, or type feedback to refine |
 | `direct` | Write immediately without prompting |
+| `terse` | Suppress agent text between tool calls; only the final summary line is printed |
 
 Default: `confirm`.
 
 `direct` is appropriate for fully automated pipelines. `interactive` is appropriate when
 the user may want to guide or correct the agent's proposed changes. `confirm` is the safe
-default for most tools.
+default for most tools. `terse` is appropriate for tools that manage their own progress
+output through TUI tools and don't want the agent's intermediate narration to appear.
 
 ---
 
@@ -365,8 +362,8 @@ validation produces a clear error and the tool exits immediately.
 Required fields: `name`, `model`, at least one `system_prompts` entry, at least one command.
 
 - `model` must be in `provider/model-id` format
-- `output_mode` must be `confirm`, `interactive`, or `direct`
+- `output_mode` must be `confirm`, `interactive`, `direct`, or `terse`
 - Each command must have a `name`
-- Each `tool_use.tui` entry must be one of the four known tool names
-- Each `tool_use.web` entry must be `fetch` or `search`
+- Each `tool_use.tui` entry must be one of the five known tool names (`list_select`, `confirm`, `text_input`, `text_editor`, `show_diff`)
+- Each `tool_use.web` entry must be `fetch`
 - TUI tool `enabled: true` must be set for any shell or TUI tools to be registered

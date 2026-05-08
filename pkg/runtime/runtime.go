@@ -140,28 +140,26 @@ func registerFlags(cobraCmd *cobra.Command, toolCmd *config.Command) {
 	}
 }
 
-// buildFlagContext returns a string of non-default flag values to inject into the agent prompt.
+// buildFlagContext returns a formatted string of flags the user explicitly set,
+// for injection into the agent's initial message. Only flags the user actually
+// passed on the command line are included — flags at their default value are
+// omitted so the agent doesn't confuse default state with user intent.
 func buildFlagContext(cmd *cobra.Command, toolCmd *config.Command) string {
 	var lines []string
 	for _, f := range toolCmd.Flags {
+		if !cmd.Flags().Changed(f.Name) {
+			continue
+		}
 		switch f.Type {
 		case "bool":
 			val, _ := cmd.Flags().GetBool(f.Name)
-			def, _ := f.Default.(bool)
-			if val != def {
-				lines = append(lines, fmt.Sprintf("--%s: %v", f.Name, val))
-			}
+			lines = append(lines, fmt.Sprintf("--%s: %v", f.Name, val))
 		case "int":
 			val, _ := cmd.Flags().GetInt(f.Name)
-			def, _ := f.Default.(int)
-			if val != def {
-				lines = append(lines, fmt.Sprintf("--%s: %d", f.Name, val))
-			}
+			lines = append(lines, fmt.Sprintf("--%s: %d", f.Name, val))
 		default: // "string"
 			val, _ := cmd.Flags().GetString(f.Name)
-			if val != "" {
-				lines = append(lines, fmt.Sprintf("--%s: %s", f.Name, val))
-			}
+			lines = append(lines, fmt.Sprintf("--%s: %s", f.Name, val))
 		}
 	}
 	return strings.Join(lines, "\n")
