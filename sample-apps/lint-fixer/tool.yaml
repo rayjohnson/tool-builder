@@ -21,27 +21,32 @@ file_access:
 
 tool_use:
   enabled: true
+  tui:
+    - show_diff
+    - confirm
   shell:
     - command: golangci-lint
       args: [run]
     - command: go
       args: [build, vet]
 
-output_mode: interactive
+output_mode: terse
 
 commands:
   - name: default
     description: Run golangci-lint on the current directory and fix all issues
     prompt: |
-      Run golangci-lint on the project. Fix every issue found, one file at a time,
-      following the system prompt guidelines. After all fixes are proposed, run
-      golangci-lint once more to confirm the project is clean.
+      Begin. Call run_golangci_lint now.
     flags:
       - name: path
         short: p
         description: Package pattern to lint (default ./...)
         type: string
         default: "./..."
+      - name: config
+        short: c
+        description: Path to golangci-lint config file (default auto-detected)
+        type: string
       - name: only
         description: Fix only issues from a specific linter (e.g. misspell, gosec)
         type: string

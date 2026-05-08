@@ -114,7 +114,7 @@ func execWriteFile(
 
 	mode := cfg.OutputModeOrDefault()
 	switch mode {
-	case "direct":
+	case "direct", "terse":
 		if err := writeFile(absPath, input.Content); err != nil {
 			return errResult(fmt.Sprintf("write error: %v", err))
 		}
@@ -183,7 +183,7 @@ func execEditFile(
 
 	mode := cfg.OutputModeOrDefault()
 	switch mode {
-	case "direct":
+	case "direct", "terse":
 		if err := writeFile(absPath, newContent); err != nil {
 			return errResult(fmt.Sprintf("write error: %v", err))
 		}

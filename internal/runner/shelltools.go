@@ -25,6 +25,9 @@ func buildShellTools(cfg *config.Config, workDir string) ([]anthropic.BetaTool, 
 
 	tools := make([]anthropic.BetaTool, 0, len(cfg.ToolUse.Shell))
 	for _, sh := range cfg.ToolUse.Shell {
+		if _, err := exec.LookPath(sh.Command); err != nil {
+			return nil, fmt.Errorf("required command %q not found in PATH — install it before running this tool", sh.Command)
+		}
 		name := shellToolName(sh.Command)
 		desc := fmt.Sprintf(
 			"Run: %s %s\nOnly these subcommands/args are permitted: %s",
